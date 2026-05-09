@@ -130,17 +130,21 @@
 </div>
 
 <!-- Get Location button -->
-<button id="get-location-btn" class="btn btn-primary w-100 mb-3">
+<button id="get-location-btn" class="btn btn-primary w-100 mb-2">
     <i class="bi bi-crosshair me-2"></i>Get My Location
 </button>
 
+<!-- GPS Accuracy badge -->
+<div id="accuracy-badge" class="d-none mb-3 text-center">
+    <span id="accuracy-pill" class="badge fs-6 px-3 py-2">
+        <i class="bi bi-broadcast me-1"></i>
+        Accuracy: <span id="accuracy-value">—</span>m
+    </span>
+    <div id="accuracy-hint" class="small mt-1"></div>
+</div>
+
 <!-- Map -->
 <div class="map-container" id="map"></div>
-
-<!-- GPS accuracy info -->
-<div id="accuracy-info" class="text-muted small text-center d-none">
-    <i class="bi bi-broadcast me-1"></i>GPS accuracy: <span id="accuracy-value">—</span>m
-</div>
 
 {% endblock %}
 
@@ -182,9 +186,8 @@
                 const lon = position.coords.longitude;
                 const acc = position.coords.accuracy;
 
-                // Show accuracy
-                document.getElementById('accuracy-info').classList.remove('d-none');
-                document.getElementById('accuracy-value').textContent = Math.round(acc);
+                // Show accuracy badge
+                showAccuracy(acc);
 
                 // Send to Django API
                 fetch(`/api/gps-to-chainage/${alignmentId}/`, {
@@ -330,6 +333,27 @@
             btn.innerHTML = '<i class="bi bi-calculator me-2"></i>Calculate Target Point';
         });
     });
+
+    function showAccuracy(acc) {
+        const badge   = document.getElementById('accuracy-badge');
+        const pill    = document.getElementById('accuracy-pill');
+        const hint    = document.getElementById('accuracy-hint');
+        const rounded = Math.round(acc);
+
+        badge.classList.remove('d-none');
+        document.getElementById('accuracy-value').textContent = rounded;
+
+        if (acc <= 10) {
+            pill.className = 'badge fs-6 px-3 py-2 bg-success';
+            hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Excellent — good to capture';
+        } else if (acc <= 20) {
+            pill.className = 'badge fs-6 px-3 py-2 bg-warning text-dark';
+            hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Fair — consider waiting for better signal';
+        } else {
+            pill.className = 'badge fs-6 px-3 py-2 bg-danger';
+            hint.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i>Poor — move to open ground or wait';
+        }
+    }
 
     function showStatus(type, msg) {
         const el = document.getElementById('gps-status');
