@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: pri_site_app
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist database, media and dxf files outside container
+      - ./db.sqlite3:/app/db.sqlite3
+      - ./media:/app/media
+      - ./dxf_files:/app/dxf_files
+    env_file:
+      - .env
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn config.wsgi:application
+             --bind 0.0.0.0:8000
+             --workers 2"
