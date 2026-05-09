@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Capture Feature — {{ alignment.name }}{% endblock %}
+
+{% block nav_capture %}active{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h5><i class="bi bi-pin-map me-2"></i>Capture Feature</h5>
+    <small>{{ alignment.name }}</small>
+</div>
+
+<!-- GPS Status -->
+<div id="gps-status" class="alert alert-info py-2 mb-3">
+    <i class="bi bi-broadcast me-2"></i>Tap "Get My Location" to begin
+</div>
+
+<!-- Distance warning -->
+<div id="distance-warning" class="distance-warning d-none">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <span id="distance-warning-text"></span>
+</div>
+
+<!-- Location metrics -->
+<div class="row g-2 mb-3">
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Chainage</div>
+            <div class="metric-value" id="chainage-display">—</div>
+            <small class="text-muted">metres</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Distance from Alignment</div>
+            <div class="metric-value" id="dist-display">—</div>
+            <small class="text-muted">metres</small>
+        </div>
+    </div>
+</div>
+
+<!-- Get location button -->
+<button id="get-location-btn" class="btn btn-primary w-100 mb-3" type="button">
+    <i class="bi bi-crosshair me-2"></i>Get My Location
+</button>
+
+<hr>
+
+<!-- Multipart form — GPS coords stored in hidden fields -->
+<form method="POST" enctype="multipart/form-data" id="capture-form">
+    {% csrf_token %}
+
+    <!-- Hidden GPS fields — populated by JS -->
+    <input type="hidden" name="latitude"  id="latitude-field"  value="">
+    <input type="hidden" name="longitude" id="longitude-field" value="">
+
+    <!-- Feature type -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Feature Type</label>
+        <select name="feature_type" id="feature-type" class="form-select">
+            {% for value, label in feature_types %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Custom feature type -->
+    <div class="mb-3 d-none" id="custom-type-div">
+        <label class="form-label fw-semibold">Describe Feature</label>
+        <input type="text" name="custom_feature_type" id="custom-feature-type"
+               class="form-control" placeholder="e.g. Speed camera, cattle grid...">
+    </div>
+
+    <!-- Side of road -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Side of Road</label>
+        <div class="d-flex gap-3 flex-wrap">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-LHS" value="LHS" checked>
+                <label class="form-check-label" for="side-LHS">LHS — Left Hand Side</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-RHS" value="RHS">
+                <label class="form-check-label" for="side-RHS">RHS — Right Hand Side</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-BOTH" value="BOTH">
+                <label class="form-check-label" for="side-BOTH">BOTH — Both Sides</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-NA" value="NA">
+                <label class="form-check-label" for="side-NA">N/A</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Condition -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Condition</label>
+        <div class="d-flex gap-3 flex-wrap">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="condition"
+                       id="cond-GOOD" value="GOOD" checked>
+                <label class="form-check-label" for="cond-GOOD">Good</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="condition"
+                       id="cond-FAIR" value="FAIR">
+                <label class="form-check-label" for="cond-FAIR">Fair</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="condition"
+                       id="cond-POOR" value="POOR">
+                <label class="form-check-label" for="cond-POOR">Poor</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="condition"
+                       id="cond-DAMAGED" value="DAMAGED">
+                <label class="form-check-label" for="cond-DAMAGED">Damaged</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offset and distance -->
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label class="form-label fw-semibold">Offset from Edge (m)</label>
+            <input type="number" name="offset_from_edge_m" class="form-control"
+                   value="0.0" min="0" step="0.1">
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-semibold">Distance Along Edge (m)</label>
+            <input type="number" name="distance_along_edge_m" class="form-control"
+                   value="0.0" min="0" step="0.1">
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">
+            Notes <span class="text-muted fw-normal">(optional)</span>
+        </label>
+        <textarea name="notes" class="form-control" rows="3"
+                  placeholder="e.g. damaged, obscured, requires action..."></textarea>
+    </div>
+
+    <!-- Photo -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">
+            Photo <span class="text-muted fw-normal">(optional — select from gallery)</span>
+        </label>
+        <input type="file" name="photo" id="photo-input"
+               class="form-control" accept="image/*">
+        <div id="photo-preview" class="mt-2 d-none">
+            <img id="photo-img" src="#" alt="Preview"
+                 class="img-fluid rounded" style="max-height:200px">
+            <div class="small text-muted mt-1" id="photo-name"></div>
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-container mb-3 d-none" id="map-container">
+        <div id="map" style="height:300px;border-radius:10px;"></div>
+    </div>
+
+    <!-- Submit button -->
+    <button type="submit" id="save-btn" class="btn btn-success w-100 btn-lg mb-4">
+        <i class="bi bi-pin-map-fill me-2"></i>Capture Point
+    </button>
+
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const alignmentLine      = {{ gps_line|safe }};
+    const alignmentId        = {{ alignment.id }};
+    const DISTANCE_WARNING_M = 50;
+
+    let map              = null;
+    let projMarker       = null;
+    let phoneMarker      = null;
+    let connectLine      = null;
+    let locationCaptured = false;
+
+    // Get location button
+    document.getElementById('get-location-btn').addEventListener('click', function () {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Getting location...';
+
+        if (!navigator.geolocation) {
+            showStatus('danger', 'Geolocation not supported by this browser.');
+            resetBtn(btn); return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                // Store in hidden fields
+                document.getElementById('latitude-field').value  = lat;
+                document.getElementById('longitude-field').value = lon;
+
+                // Get projected chainage from API
+                fetch(`/api/gps-to-chainage/${alignmentId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({latitude: lat, longitude: lon})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) { showStatus('danger', data.error); return; }
+
+                    // Update metrics
+                    document.getElementById('chainage-display').textContent = data.chainage.toFixed(3);
+                    document.getElementById('dist-display').textContent     = data.distance_from_alignment.toFixed(3);
+
+                    // Distance warning
+                    const warn = document.getElementById('distance-warning');
+                    if (data.distance_from_alignment > DISTANCE_WARNING_M) {
+                        warn.classList.remove('d-none');
+                        document.getElementById('distance-warning-text').textContent =
+                            `You are ${data.distance_from_alignment.toFixed(1)}m from the alignment — check your location.`;
+                    } else {
+                        warn.classList.add('d-none');
+                    }
+
+                    // Show and init map
+                    document.getElementById('map-container').classList.remove('d-none');
+                    initMap([data.latitude, data.longitude], [lat, lon]);
+
+                    locationCaptured = true;
+                    showStatus('success', `Location acquired — Chainage: ${data.chainage.toFixed(3)}m. Fill in details and capture.`);
+                })
+                .catch(err => showStatus('danger', 'Error: ' + err.message))
+                .finally(() => resetBtn(btn));
+            },
+            function (err) {
+                showStatus('danger', 'GPS error: ' + err.message);
+                resetBtn(btn);
+            },
+            {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
+        );
+    });
+
+    // Prevent form submit if no location captured
+    document.getElementById('capture-form').addEventListener('submit', function (e) {
+        if (!locationCaptured) {
+            e.preventDefault();
+            showStatus('danger', 'Please get your location first before capturing.');
+        }
+    });
+
+    // Custom feature type toggle
+    function toggleCustomType() {
+        const customDiv = document.getElementById('custom-type-div');
+        if (document.getElementById('feature-type').value === 'Custom / Other') {
+            customDiv.classList.remove('d-none');
+        } else {
+            customDiv.classList.add('d-none');
+        }
+    }
+    document.getElementById('feature-type').addEventListener('change', toggleCustomType);
+    toggleCustomType();
+
+    // Photo preview
+    document.getElementById('photo-input').addEventListener('change', function () {
+        const preview = document.getElementById('photo-preview');
+        const img     = document.getElementById('photo-img');
+        const name    = document.getElementById('photo-name');
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => { img.src = e.target.result; };
+            reader.readAsDataURL(this.files[0]);
+            name.textContent = this.files[0].name;
+            preview.classList.remove('d-none');
+        } else {
+            preview.classList.add('d-none');
+        }
+    });
+
+    // Map
+    function initMap(projLatLon, phoneLatLon) {
+        if (!map) {
+            map = L.map('map').setView(projLatLon, 17);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
+        }
+
+        if (projMarker)  map.removeLayer(projMarker);
+        if (phoneMarker) map.removeLayer(phoneMarker);
+        if (connectLine) map.removeLayer(connectLine);
+
+        projMarker = L.marker(projLatLon, {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="background:#dc3545;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                iconAnchor: [7, 7]
+            })
+        }).bindPopup('Projected point').addTo(map);
+
+        phoneMarker = L.marker(phoneLatLon, {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="background:#198754;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                iconAnchor: [7, 7]
+            })
+        }).bindPopup('Your GPS').addTo(map);
+
+        connectLine = L.polyline([phoneLatLon, projLatLon], {
+            color: '#ffc107', weight: 3, dashArray: '6'
+        }).addTo(map);
+
+        map.setView(projLatLon, 17);
+        setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    function showStatus(type, msg) {
+        const el     = document.getElementById('gps-status');
+        el.className = `alert alert-${type} py-2 mb-3`;
+        const icon   = type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'broadcast';
+        el.innerHTML = `<i class="bi bi-${icon} me-2"></i>${msg}`;
+    }
+
+    function resetBtn(btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+</script>
+{% endblock %}

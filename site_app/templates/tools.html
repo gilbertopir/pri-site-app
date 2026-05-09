@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Tools — {{ alignment.name }}{% endblock %}
+
+{% block nav_tools %}active{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h5><i class="bi bi-tools me-2"></i>Tools</h5>
+    <small>{{ alignment.name }} &nbsp;|&nbsp; Total length: {{ total }}m</small>
+</div>
+
+<!-- ==============================
+     Section 1 — Chainage → GPS
+     ============================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <h6 class="fw-bold mb-3">
+            <i class="bi bi-calculator me-2 text-primary"></i>Chainage → GPS
+        </h6>
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="chainage_to_gps">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Chainage (m)</label>
+                <input type="number" name="chainage" class="form-control"
+                       min="0" max="{{ total }}" step="0.001"
+                       value="{% if ch_result %}{{ ch_result.chainage }}{% else %}0{% endif %}"
+                       placeholder="Enter chainage in metres">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-arrow-right-circle me-2"></i>Get GPS Coordinates
+            </button>
+        </form>
+
+        {% if ch_result %}
+        <hr>
+        <div class="row g-2 mt-1">
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Latitude</div>
+                    <div class="metric-value fs-5">{{ ch_result.latitude }}</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Longitude</div>
+                    <div class="metric-value fs-5">{{ ch_result.longitude }}</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Easting</div>
+                    <div class="metric-value fs-5">{{ ch_result.easting }}</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Northing</div>
+                    <div class="metric-value fs-5">{{ ch_result.northing }}</div>
+                </div>
+            </div>
+        </div>
+
+        <a href="https://www.google.com/maps/search/?api=1&query={{ ch_result.latitude }},{{ ch_result.longitude }}"
+           target="_blank" class="btn btn-success w-100 mt-2">
+            <i class="bi bi-map me-2"></i>Open in Google Maps
+        </a>
+
+        <div class="map-container mt-3" id="map-ch"></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ==============================
+     Section 2 — GPS → Chainage
+     ============================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <h6 class="fw-bold mb-3">
+            <i class="bi bi-arrow-repeat me-2 text-primary"></i>GPS → Chainage
+        </h6>
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="gps_to_chainage">
+            <div class="mb-2">
+                <label class="form-label fw-semibold">Latitude</label>
+                <input type="number" name="latitude" class="form-control"
+                       step="0.00000001"
+                       value="{% if gps_result %}{{ gps_result.latitude }}{% else %}53.0{% endif %}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Longitude</label>
+                <input type="number" name="longitude" class="form-control"
+                       step="0.00000001"
+                       value="{% if gps_result %}{{ gps_result.longitude }}{% else %}-2.0{% endif %}">
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-arrow-right-circle me-2"></i>Get Chainage
+            </button>
+        </form>
+
+        {% if gps_result %}
+        <hr>
+
+        {% if gps_result.distance_from_alignment > 50 %}
+        <div class="distance-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            {{ gps_result.distance_from_alignment }}m from alignment — point may be outside the corridor.
+        </div>
+        {% endif %}
+
+        <div class="row g-2 mt-1">
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Chainage</div>
+                    <div class="metric-value">{{ gps_result.chainage }}</div>
+                    <small class="text-muted">metres</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Distance from Alignment</div>
+                    <div class="metric-value">{{ gps_result.distance_from_alignment }}</div>
+                    <small class="text-muted">metres</small>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Easting</div>
+                    <div class="metric-value fs-5">{{ gps_result.easting }}</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="metric-card">
+                    <div class="metric-label">Northing</div>
+                    <div class="metric-value fs-5">{{ gps_result.northing }}</div>
+                </div>
+            </div>
+        </div>
+
+        <a href="https://www.google.com/maps/search/?api=1&query={{ gps_result.latitude }},{{ gps_result.longitude }}"
+           target="_blank" class="btn btn-success w-100 mt-2">
+            <i class="bi bi-map me-2"></i>Open Projected Point in Google Maps
+        </a>
+
+        <div class="map-container mt-3" id="map-gps"></div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const alignmentLine = {{ gps_line|safe }};
+
+    function initMap(containerId, centerLatLon, redMarker, greenMarker) {
+        const map = L.map(containerId).setView(centerLatLon, 17);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
+
+        if (redMarker) {
+            L.marker(redMarker.pos, {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="background:#dc3545;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                    iconAnchor: [7, 7]
+                })
+            }).bindPopup(redMarker.label).addTo(map);
+        }
+
+        if (greenMarker) {
+            L.marker(greenMarker.pos, {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="background:#198754;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                    iconAnchor: [7, 7]
+                })
+            }).bindPopup(greenMarker.label).addTo(map);
+
+            // Draw connecting line
+            L.polyline([greenMarker.pos, redMarker.pos], {
+                color: '#ffc107', weight: 3, dashArray: '6'
+            }).addTo(map);
+        }
+    }
+
+    {% if ch_result %}
+    initMap(
+        'map-ch',
+        [{{ ch_result.latitude }}, {{ ch_result.longitude }}],
+        {pos: [{{ ch_result.latitude }}, {{ ch_result.longitude }}],
+         label: 'Chainage: {{ ch_result.chainage }}m'},
+        null
+    );
+    {% endif %}
+
+    {% if gps_result %}
+    initMap(
+        'map-gps',
+        [{{ gps_result.latitude }}, {{ gps_result.longitude }}],
+        {pos: [{{ gps_result.latitude }},  {{ gps_result.longitude }}],
+         label: 'Projected Ch: {{ gps_result.chainage }}m'},
+        null
+    );
+    {% endif %}
+</script>
+{% endblock %}

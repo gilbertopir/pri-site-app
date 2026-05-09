@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Passing Places — {{ alignment.name }}{% endblock %}
+
+{% block nav_pp %}active{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h5><i class="bi bi-arrow-left-right me-2"></i>Passing Places</h5>
+    <small>{{ alignment.name }}</small>
+</div>
+
+<!-- GPS Status -->
+<div id="gps-status" class="alert alert-info py-2 mb-3">
+    <i class="bi bi-broadcast me-2"></i>Tap "Get My Location" to begin
+</div>
+
+<!-- Distance warning -->
+<div id="distance-warning" class="distance-warning d-none">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <span id="distance-warning-text"></span>
+</div>
+
+<!-- Next ID badge -->
+<div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-primary fs-6 px-3 py-2">
+        <i class="bi bi-hash me-1"></i>Next ID: {{ next_id }}
+    </span>
+</div>
+
+<!-- Location metrics -->
+<div class="row g-2 mb-3">
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Mid Chainage</div>
+            <div class="metric-value" id="chainage">—</div>
+            <small class="text-muted">metres</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Distance from Alignment</div>
+            <div class="metric-value" id="dist-alignment">—</div>
+            <small class="text-muted">metres</small>
+        </div>
+    </div>
+</div>
+
+<!-- Get location button -->
+<button id="get-location-btn" class="btn btn-primary w-100 mb-3">
+    <i class="bi bi-crosshair me-2"></i>Get My Location
+</button>
+
+<hr>
+
+<!-- Form — shown after location acquired -->
+<div id="pp-form" class="d-none">
+
+    <!-- Side -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Side of Road</label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-LHS" value="LHS" checked>
+                <label class="form-check-label" for="side-LHS">LHS — Left Hand Side</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-RHS" value="RHS">
+                <label class="form-check-label" for="side-RHS">RHS — Right Hand Side</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Status</label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="status"
+                       id="status-existing" value="Existing" checked>
+                <label class="form-check-label" for="status-existing">Existing</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="status"
+                       id="status-new" value="New">
+                <label class="form-check-label" for="status-new">New</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Width and Length -->
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label class="form-label fw-semibold">Width (m)</label>
+            <input type="number" id="width" class="form-control"
+                   value="0.0" min="0" step="0.1">
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-semibold">Length (m)</label>
+            <input type="number" id="length" class="form-control"
+                   value="0.0" min="0" step="0.1">
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
+        <textarea id="notes" class="form-control" rows="3"
+                  placeholder="e.g. surfaced, grass verge, visibility issues..."></textarea>
+    </div>
+
+    <!-- Map -->
+    <div class="map-container mb-3" id="map"></div>
+
+    <!-- Save button -->
+    <button id="save-btn" class="btn btn-success w-100 btn-lg mb-3">
+        <i class="bi bi-save me-2"></i>Save Passing Place
+    </button>
+
+    <!-- Success message -->
+    <div id="save-success" class="alert alert-success d-none">
+        <i class="bi bi-check-circle me-2"></i>
+        <span id="save-success-text"></span>
+    </div>
+
+</div>
+
+<hr>
+
+<!-- Saved passing places list -->
+<h6 class="fw-bold mb-3">
+    <i class="bi bi-list-ul me-2"></i>Recorded Passing Places
+    <span class="badge bg-secondary ms-1">{{ pp_list|length }}</span>
+</h6>
+
+{% if pp_list %}
+    {% for pp in pp_list %}
+    <div class="card border-0 shadow-sm mb-2">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="badge bg-primary me-1">{{ pp.pp_id }}</span>
+                    <span class="badge bg-secondary me-1">{{ pp.side }}</span>
+                    {% if pp.status == 'New' %}
+                    <span class="badge bg-success">{{ pp.status }}</span>
+                    {% else %}
+                    <span class="badge bg-info">{{ pp.status }}</span>
+                    {% endif %}
+                    <div class="mt-1 small text-muted">
+                        Ch: <strong>{{ pp.mid_chainage_m }}m</strong> &nbsp;|&nbsp;
+                        W: <strong>{{ pp.width_m }}m</strong> &nbsp;|&nbsp;
+                        L: <strong>{{ pp.length_m }}m</strong>
+                    </div>
+                    {% if pp.notes %}
+                    <div class="small text-muted mt-1">{{ pp.notes }}</div>
+                    {% endif %}
+                    <div class="small text-muted mt-1">
+                        <i class="bi bi-person me-1"></i>{{ pp.captured_by.username }}
+                        &nbsp;|&nbsp;
+                        <i class="bi bi-clock me-1"></i>{{ pp.captured_at|date:"d M Y H:i" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-light text-center">
+        <i class="bi bi-inbox me-2"></i>No passing places recorded yet.
+    </div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const alignmentLine = {{ gps_line|safe }};
+    const alignmentId   = {{ alignment.id }};
+    const DISTANCE_WARNING_M = 50;
+
+    let capturedLat = null;
+    let capturedLon = null;
+    let map         = null;
+    let projMarker  = null;
+    let phoneMarker = null;
+    let connectLine = null;
+
+    function initMap(projLatLon, phoneLatLon) {
+        if (!map) {
+            map = L.map('map').setView(projLatLon, 17);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
+        }
+
+        if (projMarker)  map.removeLayer(projMarker);
+        if (phoneMarker) map.removeLayer(phoneMarker);
+        if (connectLine) map.removeLayer(connectLine);
+
+        projMarker = L.marker(projLatLon, {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="background:#dc3545;width:14px;height:14px;border-radius:50%;border:2px solid white;"></div>',
+                iconAnchor: [7, 7]
+            })
+        }).bindPopup('Projected point').addTo(map);
+
+        phoneMarker = L.marker(phoneLatLon, {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="background:#198754;width:14px;height:14px;border-radius:50%;border:2px solid white;"></div>',
+                iconAnchor: [7, 7]
+            })
+        }).bindPopup('Your GPS').addTo(map);
+
+        connectLine = L.polyline([phoneLatLon, projLatLon], {
+            color: '#ffc107', weight: 3, dashArray: '6'
+        }).addTo(map);
+
+        map.setView(projLatLon, 17);
+    }
+
+    document.getElementById('get-location-btn').addEventListener('click', function () {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Getting location...';
+
+        if (!navigator.geolocation) {
+            showStatus('danger', 'Geolocation not supported.');
+            resetBtn(btn); return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                capturedLat = position.coords.latitude;
+                capturedLon = position.coords.longitude;
+
+                fetch(`/api/gps-to-chainage/${alignmentId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({latitude: capturedLat, longitude: capturedLon})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) { showStatus('danger', data.error); return; }
+
+                    document.getElementById('chainage').textContent       = data.chainage.toFixed(3);
+                    document.getElementById('dist-alignment').textContent = data.distance_from_alignment.toFixed(3);
+
+                    const warn = document.getElementById('distance-warning');
+                    if (data.distance_from_alignment > DISTANCE_WARNING_M) {
+                        warn.classList.remove('d-none');
+                        document.getElementById('distance-warning-text').textContent =
+                            `You are ${data.distance_from_alignment.toFixed(1)}m from the alignment.`;
+                    } else {
+                        warn.classList.add('d-none');
+                    }
+
+                    document.getElementById('pp-form').classList.remove('d-none');
+                    initMap([data.latitude, data.longitude], [capturedLat, capturedLon]);
+                    showStatus('success', `Location acquired — Ch: ${data.chainage.toFixed(3)}m`);
+                })
+                .catch(err => showStatus('danger', 'Error: ' + err.message))
+                .finally(() => resetBtn(btn));
+            },
+            function (err) {
+                showStatus('danger', 'GPS error: ' + err.message);
+                resetBtn(btn);
+            },
+            {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
+        );
+    });
+
+    document.getElementById('save-btn').addEventListener('click', function () {
+        if (capturedLat === null) {
+            showStatus('danger', 'Please get your location first.');
+            return;
+        }
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Saving...';
+
+        const sideEl   = document.querySelector('input[name="side"]:checked');
+        const statusEl = document.querySelector('input[name="status"]:checked');
+
+        fetch(`/api/passing-place/${alignmentId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                latitude:  capturedLat,
+                longitude: capturedLon,
+                side:      sideEl   ? sideEl.value   : 'LHS',
+                status:    statusEl ? statusEl.value : 'Existing',
+                width_m:   parseFloat(document.getElementById('width').value)  || 0,
+                length_m:  parseFloat(document.getElementById('length').value) || 0,
+                notes:     document.getElementById('notes').value,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { showStatus('danger', data.error); return; }
+
+            document.getElementById('save-success').classList.remove('d-none');
+            document.getElementById('save-success-text').textContent =
+                `Saved: ${data.pp_id} at chainage ${data.chainage.toFixed(3)}m`;
+
+            // Reset
+            document.getElementById('notes').value = '';
+            capturedLat = null;
+            capturedLon = null;
+
+            showStatus('info', 'Tap "Get My Location" to record another.');
+
+            // Reload page to update list and next ID
+            setTimeout(() => location.reload(), 1500);
+        })
+        .catch(err => showStatus('danger', 'Error: ' + err.message))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save me-2"></i>Save Passing Place';
+        });
+    });
+
+    function showStatus(type, msg) {
+        const el   = document.getElementById('gps-status');
+        el.className = `alert alert-${type} py-2 mb-3`;
+        const icon = type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'broadcast';
+        el.innerHTML = `<i class="bi bi-${icon} me-2"></i>${msg}`;
+    }
+
+    function resetBtn(btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+</script>
+{% endblock %}

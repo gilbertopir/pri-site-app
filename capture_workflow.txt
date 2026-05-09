@@ -1,0 +1,8 @@
+1. Engineer arrives at feature
+2. Takes photo(s) with phone camera normally  
+3. Opens app → Capture tab
+4. Gets GPS location
+5. Fills in feature details
+6. Taps photo field → picks from gallery
+7. Sees preview
+8. Taps Capture Point → saves everything together

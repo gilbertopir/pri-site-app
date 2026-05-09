@@ -1,0 +1,29 @@
+from django.contrib import admin
+from .models import UserProfile, Alignment, FeatureCapture, PassingPlace
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display  = ["user", "role"]
+    list_filter   = ["role"]
+
+
+@admin.register(Alignment)
+class AlignmentAdmin(admin.ModelAdmin):
+    list_display  = ["name", "dxf_file", "active", "uploaded_at"]
+    list_filter   = ["active"]
+
+
+@admin.register(FeatureCapture)
+class FeatureCaptureAdmin(admin.ModelAdmin):
+    list_display  = ["get_feature_label", "alignment", "chainage_m", "side", "condition", "captured_by", "captured_at"]
+    list_filter   = ["alignment", "feature_type", "side", "condition"]
+    search_fields = ["notes", "custom_feature_type"]
+    readonly_fields = ["captured_at"]
+
+
+@admin.register(PassingPlace)
+class PassingPlaceAdmin(admin.ModelAdmin):
+    list_display  = ["pp_id", "alignment", "mid_chainage_m", "side", "status", "width_m", "length_m", "captured_by", "captured_at"]
+    list_filter   = ["alignment", "side", "status"]
+    readonly_fields = ["captured_at"]

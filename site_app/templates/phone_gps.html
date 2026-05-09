@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block title %}Phone GPS — {{ alignment.name }}{% endblock %}
+
+{% block nav_gps %}active{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h5><i class="bi bi-phone me-2"></i>Phone GPS</h5>
+    <small>{{ alignment.name }}</small>
+</div>
+
+<!-- GPS Status -->
+<div id="gps-status" class="alert alert-info py-2 mb-3">
+    <i class="bi bi-broadcast me-2"></i>Waiting for GPS location...
+</div>
+
+<!-- Distance warning -->
+<div id="distance-warning" class="distance-warning d-none">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <span id="distance-warning-text"></span>
+</div>
+
+<!-- Metrics -->
+<div class="row g-2 mb-3">
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Chainage</div>
+            <div class="metric-value" id="chainage">—</div>
+            <small class="text-muted">metres</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Distance from Alignment</div>
+            <div class="metric-value" id="dist-alignment">—</div>
+            <small class="text-muted">metres</small>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Easting</div>
+            <div class="metric-value fs-5" id="easting">—</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Northing</div>
+            <div class="metric-value fs-5" id="northing">—</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Latitude</div>
+            <div class="metric-value fs-5" id="latitude">—</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="metric-card">
+            <div class="metric-label">Longitude</div>
+            <div class="metric-value fs-5" id="longitude">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Google Maps button — projected point -->
+<a id="maps-btn" href="#" target="_blank"
+   class="btn btn-success w-100 mb-3 d-none">
+    <i class="bi bi-map me-2"></i>Open Projected Point in Google Maps
+</a>
+
+<!-- Travel offset section — shown after location captured -->
+<div id="offset-section" class="d-none">
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            <h6 class="fw-bold mb-3">
+                <i class="bi bi-signpost-2 me-2 text-primary"></i>Travel to Point
+            </h6>
+            <p class="small text-muted mb-3">
+                Enter a distance along the alignment from your current position.
+                Positive = forward, negative = back.
+            </p>
+            <div class="input-group mb-3">
+                <input type="number" id="offset-input" class="form-control form-control-lg"
+                       placeholder="e.g. +150 or -50" step="0.1">
+                <span class="input-group-text">m</span>
+            </div>
+            <button id="calc-offset-btn" class="btn btn-primary w-100 mb-2">
+                <i class="bi bi-calculator me-2"></i>Calculate Target Point
+            </button>
+
+            <!-- Target result -->
+            <div id="offset-result" class="d-none mt-3">
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <div class="metric-label">Target Chainage</div>
+                            <div class="metric-value" id="target-chainage">—</div>
+                            <small class="text-muted">metres</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <div class="metric-label">Distance</div>
+                            <div class="metric-value" id="target-distance">—</div>
+                            <small class="text-muted">metres</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <div class="metric-label">Easting</div>
+                            <div class="metric-value fs-5" id="target-easting">—</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <div class="metric-label">Northing</div>
+                            <div class="metric-value fs-5" id="target-northing">—</div>
+                        </div>
+                    </div>
+                </div>
+                <a id="navigate-btn" href="#" target="_blank"
+                   class="btn btn-success w-100">
+                    <i class="bi bi-navigation me-2"></i>Navigate to Target Point
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Get Location button -->
+<button id="get-location-btn" class="btn btn-primary w-100 mb-3">
+    <i class="bi bi-crosshair me-2"></i>Get My Location
+</button>
+
+<!-- Map -->
+<div class="map-container" id="map"></div>
+
+<!-- GPS accuracy info -->
+<div id="accuracy-info" class="text-muted small text-center d-none">
+    <i class="bi bi-broadcast me-1"></i>GPS accuracy: <span id="accuracy-value">—</span>m
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Alignment polyline data from Django
+    const alignmentLine = {{ gps_line|safe }};
+    const alignmentId   = {{ alignment.id }};
+    const DISTANCE_WARNING_M = 50;
+
+    // Initialise map
+    const map = L.map('map').setView([alignmentLine[0][0], alignmentLine[0][1]], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Draw alignment
+    L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
+
+    let phoneMarker   = null;
+    let projMarker    = null;
+    let connectLine   = null;
+
+    document.getElementById('get-location-btn').addEventListener('click', function () {
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Getting location...';
+
+        if (!navigator.geolocation) {
+            showStatus('danger', 'Geolocation is not supported by this browser.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const acc = position.coords.accuracy;
+
+                // Show accuracy
+                document.getElementById('accuracy-info').classList.remove('d-none');
+                document.getElementById('accuracy-value').textContent = Math.round(acc);
+
+                // Send to Django API
+                fetch(`/api/gps-to-chainage/${alignmentId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({latitude: lat, longitude: lon})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showStatus('danger', data.error);
+                        return;
+                    }
+
+                    // Update metrics
+                    document.getElementById('chainage').textContent       = data.chainage.toFixed(3);
+                    document.getElementById('dist-alignment').textContent = data.distance_from_alignment.toFixed(3);
+                    document.getElementById('easting').textContent        = data.easting.toFixed(3);
+                    document.getElementById('northing').textContent       = data.northing.toFixed(3);
+                    document.getElementById('latitude').textContent       = data.latitude.toFixed(8);
+                    document.getElementById('longitude').textContent      = data.longitude.toFixed(8);
+
+                    // Distance warning
+                    const warn = document.getElementById('distance-warning');
+                    if (data.distance_from_alignment > DISTANCE_WARNING_M) {
+                        warn.classList.remove('d-none');
+                        document.getElementById('distance-warning-text').textContent =
+                            `You are ${data.distance_from_alignment.toFixed(1)}m from the alignment — check your location.`;
+                    } else {
+                        warn.classList.add('d-none');
+                    }
+
+                    // Show Google Maps button
+                    const mapsBtn = document.getElementById('maps-btn');
+                    mapsBtn.classList.remove('d-none');
+                    mapsBtn.href = `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}`;
+
+                    // Show offset section and store current chainage
+                    document.getElementById('offset-section').classList.remove('d-none');
+                    document.getElementById('offset-result').classList.add('d-none');
+                    window.currentChainage = data.chainage;
+
+                    // Update map markers
+                    const projLatLon  = [data.latitude,  data.longitude];
+                    const phoneLatLon = [lat, lon];
+
+                    if (projMarker)  map.removeLayer(projMarker);
+                    if (phoneMarker) map.removeLayer(phoneMarker);
+                    if (connectLine) map.removeLayer(connectLine);
+
+                    projMarker = L.marker(projLatLon, {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div style="background:#dc3545;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                            iconAnchor: [7, 7]
+                        })
+                    }).bindPopup(`Projected Ch: ${data.chainage.toFixed(3)}m`).addTo(map);
+
+                    phoneMarker = L.marker(phoneLatLon, {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div style="background:#198754;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                            iconAnchor: [7, 7]
+                        })
+                    }).bindPopup('Your GPS location').addTo(map);
+
+                    connectLine = L.polyline([phoneLatLon, projLatLon], {
+                        color: '#ffc107', weight: 3, dashArray: '6'
+                    }).addTo(map);
+
+                    map.setView(projLatLon, 17);
+
+                    showStatus('success', `Location captured — Chainage: ${data.chainage.toFixed(3)}m`);
+                })
+                .catch(err => showStatus('danger', 'Error: ' + err.message))
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
+                });
+            },
+            function (err) {
+                showStatus('danger', 'GPS error: ' + err.message);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
+            },
+            {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
+        );
+    });
+
+    // Calculate target point from offset
+    document.getElementById('calc-offset-btn').addEventListener('click', function () {
+        const offset = parseFloat(document.getElementById('offset-input').value);
+
+        if (isNaN(offset)) {
+            alert('Please enter a valid distance (positive or negative).');
+            return;
+        }
+
+        if (window.currentChainage === undefined) {
+            alert('Please get your location first.');
+            return;
+        }
+
+        const targetChainage = window.currentChainage + offset;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Calculating...';
+
+        fetch(`/api/chainage-to-gps/${alignmentId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({chainage: targetChainage})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+
+            // Show results
+            document.getElementById('target-chainage').textContent = data.chainage.toFixed(3);
+            document.getElementById('target-distance').textContent = Math.abs(offset).toFixed(1);
+            document.getElementById('target-easting').textContent  = data.easting.toFixed(3);
+            document.getElementById('target-northing').textContent = data.northing.toFixed(3);
+
+            // Navigation URL — opens Google Maps in directions mode
+            document.getElementById('navigate-btn').href =
+                `https://www.google.com/maps/dir/?api=1&destination=${data.latitude},${data.longitude}`;
+
+            document.getElementById('offset-result').classList.remove('d-none');
+        })
+        .catch(err => alert('Error: ' + err.message))
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-calculator me-2"></i>Calculate Target Point';
+        });
+    });
+
+    function showStatus(type, msg) {
+        const el = document.getElementById('gps-status');
+        el.className = `alert alert-${type} py-2 mb-3`;
+        el.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'broadcast'} me-2"></i>${msg}`;
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+</script>
+{% endblock %}

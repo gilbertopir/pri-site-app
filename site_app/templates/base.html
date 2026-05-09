@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="PRI Site App">
+    <title>{% block title %}PRI Site Visit App{% endblock %}</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Leaflet Maps -->
+    <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+
+    <style>
+        /* Mobile-first overrides */
+        body {
+            font-size: 1rem;
+            padding-bottom: 80px; /* space for bottom nav */
+        }
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        /* Larger touch targets */
+        .btn {
+            min-height: 3rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .btn-lg {
+            min-height: 3.5rem;
+            font-size: 1.1rem;
+        }
+        /* Bigger form controls */
+        .form-control, .form-select {
+            min-height: 3rem;
+            font-size: 1rem;
+        }
+        /* Metric cards */
+        .metric-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .metric-card .metric-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .metric-card .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #212529;
+        }
+        /* Bottom navigation for mobile */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            z-index: 1000;
+        }
+        .bottom-nav a {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem 0.25rem;
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 0.7rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .bottom-nav a.active {
+            color: #0d6efd;
+        }
+        .bottom-nav a i {
+            font-size: 1.4rem;
+            margin-bottom: 2px;
+        }
+        /* Map container */
+        .map-container {
+            height: 300px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        /* Alert distance warning */
+        .distance-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        /* Page header */
+        .page-header {
+            background: #0d6efd;
+            color: white;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0 10px 10px;
+        }
+        .page-header h5 {
+            margin: 0;
+            font-weight: 700;
+        }
+        .page-header small {
+            opacity: 0.85;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- Top navbar -->
+    {% if user.is_authenticated %}
+    <nav class="navbar navbar-dark bg-primary px-3 py-2">
+        <a class="navbar-brand" href="{% url 'dashboard' %}">
+            <i class="bi bi-geo-alt-fill me-1"></i>PRI Site App
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-white-50 small">{{ user.username }}</span>
+            <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm py-1">
+                <i class="bi bi-box-arrow-right"></i>
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="container-fluid px-3 mt-2">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main content -->
+    <main class="container-fluid px-3 mt-2">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bottom navigation — only shown when on a site -->
+    {% if user.is_authenticated and alignment %}
+    <nav class="bottom-nav">
+        <a href="{% url 'phone_gps' alignment.id %}"
+           class="{% block nav_gps %}{% endblock %}">
+            <i class="bi bi-phone"></i>Phone GPS
+        </a>
+        <a href="{% url 'capture' alignment.id %}"
+           class="{% block nav_capture %}{% endblock %}">
+            <i class="bi bi-pin-map"></i>Capture
+        </a>
+        <a href="{% url 'passing_places' alignment.id %}"
+           class="{% block nav_pp %}{% endblock %}">
+            <i class="bi bi-arrow-left-right"></i>Passing
+        </a>
+        <a href="{% url 'view_points' alignment.id %}"
+           class="{% block nav_view %}{% endblock %}">
+            <i class="bi bi-table"></i>View
+        </a>
+        <a href="{% url 'tools' alignment.id %}"
+           class="{% block nav_tools %}{% endblock %}">
+            <i class="bi bi-tools"></i>Tools
+        </a>
+    </nav>
+    {% endif %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

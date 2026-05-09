@@ -1,0 +1,50 @@
+Django_Site_App/
+│
+├── .env                          
+├── manage.py                     
+├── requirements.txt              
+├── db.sqlite3                    ← created after migrate
+│
+├── config/                       
+│   ├── __init__.py
+│   ├── settings.py               ← just updated
+│   ├── urls.py
+│   └── wsgi.py
+│
+├── site_app/                     
+│   ├── migrations/
+│   │   └── __init__.py
+│   ├── static/                   ← create this manually
+│   │   ├── css/
+│   │   │   └── app.css           ← create later
+│   │   └── js/
+│   │       ├── gps.js            ← create later
+│   │       └── camera.js        ← create later
+│   ├── templates/                ← create this manually
+│   │   ├── base.html             ← create later
+│   │   ├── login.html            ← create later
+│   │   ├── dashboard.html        ← create later
+│   │   ├── capture.html          ← create later
+│   │   ├── passing_places.html   ← create later
+│   │   ├── view_points.html      ← create later
+│   │   ├── chainage_gps.html     ← create later
+│   │   └── gps_chainage.html     ← create later
+│   ├── __init__.py
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py                  ← create later
+│   ├── models.py                 ← next step
+│   ├── tests.py
+│   ├── urls.py                   ← create later
+│   ├── utils.py                  ← create later
+│   └── views.py                  ← create later
+│
+├── dxf_files/                    ← just created
+│   └── PR304.dxf                 ← drop your DXF files here
+│
+├── media/                        ← just created
+│   └── photos/                   ← photos will go here automatically
+│
+├── staticfiles/                  ← created later by collectstatic
+│
+└── venv/
