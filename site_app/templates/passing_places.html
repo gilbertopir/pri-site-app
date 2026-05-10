@@ -66,6 +66,14 @@
 <!-- Form — shown after location acquired -->
 <div id="pp-form" class="d-none">
 
+<form method="POST" enctype="multipart/form-data" id="passing-place-form">
+    {% csrf_token %}
+
+    <!-- Hidden GPS fields -->
+    <input type="hidden" name="latitude"     id="latitude-field"  value="">
+    <input type="hidden" name="longitude"    id="longitude-field" value="">
+    <input type="hidden" name="gps_accuracy" id="accuracy-field"  value="">
+
     <!-- Side -->
     <div class="mb-3">
         <label class="form-label fw-semibold">Side of Road</label>
@@ -104,12 +112,12 @@
     <div class="row g-2 mb-3">
         <div class="col-6">
             <label class="form-label fw-semibold">Width (m)</label>
-            <input type="number" id="width" class="form-control"
+            <input type="number" name="width_m" class="form-control"
                    value="0.0" min="0" step="0.1">
         </div>
         <div class="col-6">
             <label class="form-label fw-semibold">Length (m)</label>
-            <input type="number" id="length" class="form-control"
+            <input type="number" name="length_m" class="form-control"
                    value="0.0" min="0" step="0.1">
         </div>
     </div>
@@ -117,23 +125,35 @@
     <!-- Notes -->
     <div class="mb-3">
         <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
-        <textarea id="notes" class="form-control" rows="3"
+        <textarea name="notes" class="form-control" rows="3"
                   placeholder="e.g. surfaced, grass verge, visibility issues..."></textarea>
     </div>
 
+    <!-- Photo -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">
+            Photo <span class="text-muted fw-normal">(optional — select from gallery)</span>
+        </label>
+        <input type="file" name="photo" id="photo-input"
+               class="form-control" accept="image/*">
+        <div id="photo-preview" class="mt-2 d-none">
+            <img id="photo-img" src="#" alt="Preview"
+                 class="img-fluid rounded" style="max-height:200px">
+            <div class="small text-muted mt-1" id="photo-name"></div>
+        </div>
+    </div>
+
     <!-- Map -->
-    <div class="map-container mb-3" id="map"></div>
+    <div class="map-container mb-3 d-none" id="map-container">
+        <div id="map" style="height:300px;border-radius:10px;"></div>
+    </div>
 
     <!-- Save button -->
-    <button id="save-btn" class="btn btn-success w-100 btn-lg mb-3">
+    <button type="submit" id="save-btn" class="btn btn-success w-100 btn-lg mb-3">
         <i class="bi bi-save me-2"></i>Save Passing Place
     </button>
 
-    <!-- Success message -->
-    <div id="save-success" class="alert alert-success d-none">
-        <i class="bi bi-check-circle me-2"></i>
-        <span id="save-success-text"></span>
-    </div>
+</form>
 
 </div>
 
@@ -199,6 +219,9 @@
     let connectLine      = null;
 
     function initMap(projLatLon, phoneLatLon) {
+        const mapContainer = document.getElementById('map-container');
+        mapContainer.classList.remove('d-none');
+
         if (!map) {
             map = L.map('map').setView(projLatLon, 17);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -232,6 +255,7 @@
         }).addTo(map);
 
         map.setView(projLatLon, 17);
+        setTimeout(() => map.invalidateSize(), 100);
     }
 
     document.getElementById('get-location-btn').addEventListener('click', function () {
@@ -252,6 +276,11 @@
 
                 // Show accuracy badge
                 showAccuracy(capturedAccuracy);
+
+                // Store in hidden fields
+                document.getElementById('latitude-field').value  = capturedLat;
+                document.getElementById('longitude-field').value = capturedLon;
+                document.getElementById('accuracy-field').value  = capturedAccuracy;
 
                 fetch(`/api/gps-to-chainage/${alignmentId}/`, {
                     method: 'POST',
@@ -292,59 +321,26 @@
         );
     });
 
-    document.getElementById('save-btn').addEventListener('click', function () {
-        if (capturedLat === null) {
+    // Prevent form submit if no location
+    document.getElementById('passing-place-form').addEventListener('submit', function (e) {
+        if (!capturedLat) {
+            e.preventDefault();
             showStatus('danger', 'Please get your location first.');
-            return;
         }
+    });
 
-        const btn = this;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Saving...';
-
-        const sideEl   = document.querySelector('input[name="side"]:checked');
-        const statusEl = document.querySelector('input[name="status"]:checked');
-
-        fetch(`/api/passing-place/${alignmentId}/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                latitude:       capturedLat,
-                longitude:      capturedLon,
-                side:           sideEl   ? sideEl.value   : 'LHS',
-                status:         statusEl ? statusEl.value : 'Existing',
-                width_m:        parseFloat(document.getElementById('width').value)  || 0,
-                length_m:       parseFloat(document.getElementById('length').value) || 0,
-                notes:          document.getElementById('notes').value,
-                gps_accuracy_m: capturedAccuracy,
-            })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) { showStatus('danger', data.error); return; }
-
-            document.getElementById('save-success').classList.remove('d-none');
-            document.getElementById('save-success-text').textContent =
-                `Saved: ${data.pp_id} at chainage ${data.chainage.toFixed(3)}m`;
-
-            // Reset
-            document.getElementById('notes').value = '';
-            capturedLat = null;
-            capturedLon = null;
-
-            showStatus('info', 'Tap "Get My Location" to record another.');
-
-            // Reload page to update list and next ID
-            setTimeout(() => location.reload(), 1500);
-        })
-        .catch(err => showStatus('danger', 'Error: ' + err.message))
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-save me-2"></i>Save Passing Place';
-        });
+    // Photo preview
+    document.getElementById('photo-input').addEventListener('change', function () {
+        const preview = document.getElementById('photo-preview');
+        const img     = document.getElementById('photo-img');
+        const name    = document.getElementById('photo-name');
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => { img.src = e.target.result; };
+            reader.readAsDataURL(this.files[0]);
+            name.textContent = this.files[0].name;
+            preview.classList.remove('d-none');
+        }
     });
 
     function showAccuracy(acc) {

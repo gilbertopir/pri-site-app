@@ -30,6 +30,7 @@ class UserProfile(models.Model):
 class Alignment(models.Model):
     name        = models.CharField(max_length=100)
     dxf_file    = models.CharField(max_length=255)   # filename only e.g. PR304.dxf
+    dxf_upload  = models.FileField(upload_to="dxf_files/", blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     active      = models.BooleanField(default=True)
 
@@ -149,6 +150,7 @@ class PassingPlace(models.Model):
     length_m      = models.FloatField(default=0.0)
     notes         = models.TextField(blank=True)
     gps_accuracy_m = models.FloatField(null=True, blank=True)
+    photo         = models.ImageField(upload_to="photos/", blank=True, null=True)
     captured_by   = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="passing_places")
     captured_at   = models.DateTimeField(auto_now_add=True)
 

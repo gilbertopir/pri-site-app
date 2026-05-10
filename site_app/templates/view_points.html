@@ -140,6 +140,12 @@
                     {% if pp.notes %}
                     <div class="small text-muted fst-italic mt-1">{{ pp.notes }}</div>
                     {% endif %}
+                    {% if pp.photo %}
+                    <div class="mt-2">
+                        <img src="{{ pp.photo.url }}" alt="Photo"
+                             class="img-fluid rounded" style="max-height:150px">
+                    </div>
+                    {% endif %}
                     <div class="small text-muted mt-1">
                         <i class="bi bi-person me-1"></i>{{ pp.captured_by.username }}
                         &nbsp;|&nbsp;

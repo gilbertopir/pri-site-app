@@ -12,6 +12,13 @@ class UserProfileAdmin(admin.ModelAdmin):
 class AlignmentAdmin(admin.ModelAdmin):
     list_display  = ["name", "dxf_file", "active", "uploaded_at"]
     list_filter   = ["active"]
+    readonly_fields = ["dxf_file"]
+
+    def save_model(self, request, obj, form, change):
+        if obj.dxf_upload:
+            from pathlib import Path
+            obj.dxf_file = Path(obj.dxf_upload.name).name
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(FeatureCapture)

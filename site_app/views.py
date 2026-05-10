@@ -165,6 +165,47 @@ def passing_places(request, alignment_id):
     next_id   = get_next_pp_id(alignment)
     pp_list   = PassingPlace.objects.filter(alignment=alignment)
 
+    if request.method == "POST":
+        try:
+            lat = float(request.POST.get("latitude"))
+            lon = float(request.POST.get("longitude"))
+        except (TypeError, ValueError):
+            messages.error(request, "No GPS location — please get your location first.")
+            return render(request, "passing_places.html", {
+                "alignment": alignment,
+                "gps_line":  json.dumps(gps_line),
+                "next_id":   next_id,
+                "pp_list":   pp_list,
+                "total":     round(data["total_length"], 3),
+            })
+
+        projected = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
+        photo     = request.FILES.get("photo")
+
+        PassingPlace.objects.create(
+            alignment      = alignment,
+            pp_id          = next_id,
+            side           = request.POST.get("side", "LHS"),
+            status         = request.POST.get("status", "Existing"),
+            mid_chainage_m = projected["chainage"],
+            mid_latitude   = projected["latitude"],
+            mid_longitude  = projected["longitude"],
+            mid_easting    = projected["easting"],
+            mid_northing   = projected["northing"],
+            width_m        = float(request.POST.get("width_m", 0) or 0),
+            length_m       = float(request.POST.get("length_m", 0) or 0),
+            notes          = request.POST.get("notes", ""),
+            gps_accuracy_m = float(request.POST.get("gps_accuracy", 0) or 0),
+            photo          = photo,
+            captured_by    = request.user,
+        )
+
+        messages.success(
+            request,
+            f"✅ Saved: {next_id} at chainage {projected['chainage']}m"
+        )
+        return redirect("passing_places", alignment_id=alignment_id)
+
     return render(request, "passing_places.html", {
         "alignment": alignment,
         "gps_line":  json.dumps(gps_line),
@@ -434,7 +475,7 @@ def export_zip(request, alignment_id):
         "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
         "Mid Easting", "Mid Northing",
         "Width (m)", "Length (m)",
-        "GPS Accuracy (m)", "Notes", "Captured By", "Captured At"
+        "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
     ]
     for col, header in enumerate(pp_headers, 1):
         cell = ws2.cell(row=1, column=col, value=header)
@@ -443,12 +484,14 @@ def export_zip(request, alignment_id):
         cell.alignment = XLAlign(horizontal="center")
 
     for pp in pp_list:
+        photo_name = Path(pp.photo.name).name if pp.photo else ""
         ws2.append([
             pp.id, pp.pp_id, pp.side, pp.status,
             pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
             pp.mid_easting, pp.mid_northing,
             pp.width_m, pp.length_m,
-            pp.gps_accuracy_m, pp.notes,
+            pp.gps_accuracy_m, photo_name,
+            pp.notes,
             pp.captured_by.username if pp.captured_by else "",
             pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")
         ])
@@ -479,7 +522,7 @@ def export_zip(request, alignment_id):
             excel_buffer.getvalue()
         )
 
-        # Add photos
+        # Add feature photos
         for f in features:
             if f.photo:
                 photo_path = Path(settings.MEDIA_ROOT) / f.photo.name
@@ -487,6 +530,16 @@ def export_zip(request, alignment_id):
                     zf.write(
                         photo_path,
                         f"{folder}/photos/{Path(f.photo.name).name}"
+                    )
+
+        # Add passing place photos
+        for pp in pp_list:
+            if pp.photo:
+                photo_path = Path(settings.MEDIA_ROOT) / pp.photo.name
+                if photo_path.exists():
+                    zf.write(
+                        photo_path,
+                        f"{folder}/photos/{Path(pp.photo.name).name}"
                     )
 
     zip_buffer.seek(0)
