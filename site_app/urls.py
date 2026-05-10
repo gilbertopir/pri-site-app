@@ -54,6 +54,12 @@ urlpatterns = [
     path("export/features/<int:alignment_id>/",       views.export_features_csv,      name="export_features_csv"),
     path("export/passing-places/<int:alignment_id>/", views.export_passing_places_csv, name="export_passing_places_csv"),
     # -----------------------------
+    # Delete records
+    # -----------------------------
+    path("delete/feature/<int:feature_id>/",       views.delete_feature,       name="delete_feature"),
+    path("delete/passing-place/<int:pp_id>/",      views.delete_passing_place, name="delete_passing_place"),
+
+    # -----------------------------
     # Admin export page
     # -----------------------------
     path("admin-export/",                          views.admin_export, name="admin_export"),
