@@ -27,15 +27,10 @@ class UserProfile(models.Model):
 # -----------------------------
 # Alignment — represents a DXF file / site
 # -----------------------------
-def dxf_upload_path(instance, filename):
-    from django.conf import settings
-    return str(settings.DXF_DIR / filename)
-
-
 class Alignment(models.Model):
     name        = models.CharField(max_length=100)
     dxf_file    = models.CharField(max_length=255)
-    dxf_upload  = models.FileField(storage=None, upload_to=dxf_upload_path, blank=True, null=True)
+    dxf_upload  = models.FileField(upload_to="dxf_files/", blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     active      = models.BooleanField(default=True)
 

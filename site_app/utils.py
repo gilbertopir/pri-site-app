@@ -49,12 +49,19 @@ def cumulative_distances(points):
 def load_alignment_from_dxf(dxf_filename):
     """
     Load the longest polyline from a DXF file.
+    Looks in both dxf_files/ and media/dxf_files/.
     Returns a dict with points, cum_dist, total_length, layer, entity.
     Returns None if file not found or no valid entities.
     """
-    dxf_path = Path(settings.DXF_DIR) / dxf_filename
+    # Check media/dxf_files/ first (uploaded via admin)
+    media_path = Path(settings.MEDIA_ROOT) / "dxf_files" / dxf_filename
+    root_path  = Path(settings.DXF_DIR) / dxf_filename
 
-    if not dxf_path.exists():
+    if media_path.exists():
+        dxf_path = media_path
+    elif root_path.exists():
+        dxf_path = root_path
+    else:
         return None
 
     try:
@@ -91,11 +98,15 @@ def load_alignment_from_dxf(dxf_filename):
 
 
 def get_available_dxf_files():
-    """Return a sorted list of .dxf filenames in the DXF_DIR."""
-    dxf_dir = Path(settings.DXF_DIR)
-    if not dxf_dir.exists():
-        return []
-    return sorted([f.name for f in dxf_dir.glob("*.dxf")])
+    """Return a sorted list of .dxf filenames from both dxf_files/ and media/dxf_files/."""
+    files = set()
+    root_dir  = Path(settings.DXF_DIR)
+    media_dir = Path(settings.MEDIA_ROOT) / "dxf_files"
+    for d in [root_dir, media_dir]:
+        if d.exists():
+            for f in d.glob("*.dxf"):
+                files.add(f.name)
+    return sorted(files)
 
 
 # -----------------------------
