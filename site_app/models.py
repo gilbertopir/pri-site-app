@@ -107,6 +107,7 @@ class FeatureCapture(models.Model):
     easting               = models.FloatField()
     northing              = models.FloatField()
     photo                 = models.ImageField(upload_to="photos/", blank=True, null=True)
+    gps_accuracy_m        = models.FloatField(null=True, blank=True)
     captured_by           = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="features")
     captured_at           = models.DateTimeField(auto_now_add=True)
 
@@ -147,6 +148,7 @@ class PassingPlace(models.Model):
     width_m       = models.FloatField(default=0.0)
     length_m      = models.FloatField(default=0.0)
     notes         = models.TextField(blank=True)
+    gps_accuracy_m = models.FloatField(null=True, blank=True)
     captured_by   = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="passing_places")
     captured_at   = models.DateTimeField(auto_now_add=True)
 

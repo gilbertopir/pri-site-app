@@ -61,8 +61,9 @@
     {% csrf_token %}
 
     <!-- Hidden GPS fields — populated by JS -->
-    <input type="hidden" name="latitude"  id="latitude-field"  value="">
-    <input type="hidden" name="longitude" id="longitude-field" value="">
+    <input type="hidden" name="latitude"     id="latitude-field"  value="">
+    <input type="hidden" name="longitude"    id="longitude-field" value="">
+    <input type="hidden" name="gps_accuracy" id="accuracy-field"  value="">
 
     <!-- Feature type -->
     <div class="mb-3">
@@ -220,6 +221,7 @@
                 // Store in hidden fields
                 document.getElementById('latitude-field').value  = lat;
                 document.getElementById('longitude-field').value = lon;
+                document.getElementById('accuracy-field').value  = acc;
 
                 // Get projected chainage from API
                 fetch(`/api/gps-to-chainage/${alignmentId}/`, {

@@ -190,12 +190,13 @@
     const alignmentId   = {{ alignment.id }};
     const DISTANCE_WARNING_M = 50;
 
-    let capturedLat = null;
-    let capturedLon = null;
-    let map         = null;
-    let projMarker  = null;
-    let phoneMarker = null;
-    let connectLine = null;
+    let capturedLat      = null;
+    let capturedLon      = null;
+    let capturedAccuracy = null;
+    let map              = null;
+    let projMarker       = null;
+    let phoneMarker      = null;
+    let connectLine      = null;
 
     function initMap(projLatLon, phoneLatLon) {
         if (!map) {
@@ -245,11 +246,12 @@
 
         navigator.geolocation.getCurrentPosition(
             function (position) {
-                capturedLat = position.coords.latitude;
-                capturedLon = position.coords.longitude;
+                capturedLat      = position.coords.latitude;
+                capturedLon      = position.coords.longitude;
+                capturedAccuracy = position.coords.accuracy;
 
                 // Show accuracy badge
-                showAccuracy(position.coords.accuracy);
+                showAccuracy(capturedAccuracy);
 
                 fetch(`/api/gps-to-chainage/${alignmentId}/`, {
                     method: 'POST',
@@ -310,13 +312,14 @@
                 'X-CSRFToken': getCookie('csrftoken')
             },
             body: JSON.stringify({
-                latitude:  capturedLat,
-                longitude: capturedLon,
-                side:      sideEl   ? sideEl.value   : 'LHS',
-                status:    statusEl ? statusEl.value : 'Existing',
-                width_m:   parseFloat(document.getElementById('width').value)  || 0,
-                length_m:  parseFloat(document.getElementById('length').value) || 0,
-                notes:     document.getElementById('notes').value,
+                latitude:       capturedLat,
+                longitude:      capturedLon,
+                side:           sideEl   ? sideEl.value   : 'LHS',
+                status:         statusEl ? statusEl.value : 'Existing',
+                width_m:        parseFloat(document.getElementById('width').value)  || 0,
+                length_m:       parseFloat(document.getElementById('length').value) || 0,
+                notes:          document.getElementById('notes').value,
+                gps_accuracy_m: capturedAccuracy,
             })
         })
         .then(r => r.json())

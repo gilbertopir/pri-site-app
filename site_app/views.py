@@ -131,6 +131,7 @@ def capture(request, alignment_id):
             easting               = projected["easting"],
             northing              = projected["northing"],
             photo                 = photo,
+            gps_accuracy_m        = float(request.POST.get("gps_accuracy", 0) or 0),
             captured_by           = request.user,
         )
 
@@ -348,6 +349,7 @@ def api_passing_place(request, alignment_id):
             width_m        = float(body.get("width_m", 0)),
             length_m       = float(body.get("length_m", 0)),
             notes          = body.get("notes", ""),
+            gps_accuracy_m = float(body.get("gps_accuracy_m", 0) or 0),
             captured_by    = request.user,
         )
         return JsonResponse({"success": True, "pp_id": next_id, "chainage": projected["chainage"]})
@@ -394,7 +396,7 @@ def export_features_csv(request, alignment_id):
         "Offset from Edge (m)", "Distance Along Edge (m)",
         "Chainage (m)", "Distance from Alignment (m)",
         "Latitude", "Longitude", "Easting", "Northing",
-        "Notes", "Captured By", "Captured At"
+        "GPS Accuracy (m)", "Notes", "Captured By", "Captured At"
     ])
     for f in features:
         writer.writerow([
@@ -402,6 +404,7 @@ def export_features_csv(request, alignment_id):
             f.offset_from_edge_m, f.distance_along_edge_m,
             f.chainage_m, f.distance_from_alignment_m,
             f.latitude, f.longitude, f.easting, f.northing,
+            f.gps_accuracy_m,
             f.notes, f.captured_by.username if f.captured_by else "",
             f.captured_at.strftime("%Y-%m-%d %H:%M:%S")
         ])
@@ -428,7 +431,7 @@ def export_passing_places_csv(request, alignment_id):
         "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
         "Mid Easting", "Mid Northing",
         "Width (m)", "Length (m)",
-        "Notes", "Captured By", "Captured At"
+        "GPS Accuracy (m)", "Notes", "Captured By", "Captured At"
     ])
     for pp in pp_list:
         writer.writerow([
@@ -436,6 +439,7 @@ def export_passing_places_csv(request, alignment_id):
             pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
             pp.mid_easting, pp.mid_northing,
             pp.width_m, pp.length_m,
+            pp.gps_accuracy_m,
             pp.notes, pp.captured_by.username if pp.captured_by else "",
             pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")
         ])
