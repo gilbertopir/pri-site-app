@@ -34,6 +34,14 @@ class Alignment(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     active      = models.BooleanField(default=True)
 
+    def delete(self, *args, **kwargs):
+        # Delete the uploaded DXF file from disk when record is deleted
+        if self.dxf_upload:
+            import os
+            if os.path.isfile(self.dxf_upload.path):
+                os.remove(self.dxf_upload.path)
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
