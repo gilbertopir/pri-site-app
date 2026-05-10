@@ -17,6 +17,7 @@ class AlignmentAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if obj.dxf_upload:
             from pathlib import Path
+            # dxf_upload.name will be the full path — extract just the filename
             obj.dxf_file = Path(obj.dxf_upload.name).name
         super().save_model(request, obj, form, change)
 
