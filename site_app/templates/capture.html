@@ -214,9 +214,10 @@
             function (position) {
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
+                const acc = position.coords.accuracy;
 
                 // Show accuracy badge
-                showAccuracy(position.coords.accuracy);
+                showAccuracy(acc);
 
                 // Store in hidden fields
                 document.getElementById('latitude-field').value  = lat;
