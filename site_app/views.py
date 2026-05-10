@@ -359,6 +359,142 @@ def api_passing_place(request, alignment_id):
 
 
 # -----------------------------
+# Admin export page
+# -----------------------------
+@login_required
+def admin_export(request):
+    if not request.user.is_staff:
+        return redirect("dashboard")
+    alignments = Alignment.objects.filter(active=True)
+    return render(request, "admin_export.html", {"alignments": alignments})
+
+
+@login_required
+def export_zip(request, alignment_id):
+    if not request.user.is_staff:
+        return redirect("dashboard")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment as XLAlign
+    from io import BytesIO
+    import zipfile
+    from pathlib import Path
+
+    alignment = get_object_or_404(Alignment, id=alignment_id)
+    features  = FeatureCapture.objects.filter(alignment=alignment)
+    pp_list   = PassingPlace.objects.filter(alignment=alignment)
+    stem      = alignment.dxf_file.replace(".dxf", "")
+    datestamp = datetime.now().strftime("%Y%m%d")
+    folder    = f"{stem}_export_{datestamp}"
+
+    # -----------------------------
+    # Build Excel
+    # -----------------------------
+    wb  = openpyxl.Workbook()
+    ws1 = wb.active
+    ws1.title = "Features"
+
+    header_fill = PatternFill("solid", fgColor="0d6efd")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    feature_headers = [
+        "ID", "Feature Type", "Side", "Condition",
+        "Offset from Edge (m)", "Distance Along Edge (m)",
+        "Chainage (m)", "Distance from Alignment (m)",
+        "Latitude", "Longitude", "Easting", "Northing",
+        "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
+    ]
+    for col, header in enumerate(feature_headers, 1):
+        cell = ws1.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = XLAlign(horizontal="center")
+
+    for f in features:
+        photo_name = Path(f.photo.name).name if f.photo else ""
+        ws1.append([
+            f.id, f.get_feature_label(), f.side, f.condition,
+            f.offset_from_edge_m, f.distance_along_edge_m,
+            f.chainage_m, f.distance_from_alignment_m,
+            f.latitude, f.longitude, f.easting, f.northing,
+            f.gps_accuracy_m, photo_name,
+            f.notes,
+            f.captured_by.username if f.captured_by else "",
+            f.captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+
+    for col in ws1.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws1.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    ws2 = wb.create_sheet("Passing Places")
+    pp_headers = [
+        "ID", "PP ID", "Side", "Status",
+        "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
+        "Mid Easting", "Mid Northing",
+        "Width (m)", "Length (m)",
+        "GPS Accuracy (m)", "Notes", "Captured By", "Captured At"
+    ]
+    for col, header in enumerate(pp_headers, 1):
+        cell = ws2.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = XLAlign(horizontal="center")
+
+    for pp in pp_list:
+        ws2.append([
+            pp.id, pp.pp_id, pp.side, pp.status,
+            pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
+            pp.mid_easting, pp.mid_northing,
+            pp.width_m, pp.length_m,
+            pp.gps_accuracy_m, pp.notes,
+            pp.captured_by.username if pp.captured_by else "",
+            pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+
+    for col in ws2.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws2.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    ws3 = wb.create_sheet("Summary")
+    ws3.append(["Alignment",            stem])
+    ws3.append(["Total Features",       features.count()])
+    ws3.append(["Total Passing Places", pp_list.count()])
+    ws3.append(["Export Date",          datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+    excel_buffer = BytesIO()
+    wb.save(excel_buffer)
+    excel_buffer.seek(0)
+
+    # -----------------------------
+    # Build ZIP
+    # -----------------------------
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+
+        # Add Excel
+        zf.writestr(
+            f"{folder}/{stem}_export_{datestamp}.xlsx",
+            excel_buffer.getvalue()
+        )
+
+        # Add photos
+        for f in features:
+            if f.photo:
+                photo_path = Path(settings.MEDIA_ROOT) / f.photo.name
+                if photo_path.exists():
+                    zf.write(
+                        photo_path,
+                        f"{folder}/photos/{Path(f.photo.name).name}"
+                    )
+
+    zip_buffer.seek(0)
+    response = HttpResponse(zip_buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{folder}.zip"'
+    return response
+
+
+# -----------------------------
 # Delete passing place
 # -----------------------------
 @login_required
