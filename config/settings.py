@@ -110,8 +110,14 @@ MEDIA_ROOT = BASE_DIR / "media"
 DXF_DIR = BASE_DIR / "dxf_files"
 
 # -----------------------------
-# Auth redirects
+# Cloudflare / Proxy settings
 # -----------------------------
+CSRF_TRUSTED_ORIGINS = [
+    "https://tgmanchester.digital",
+    "https://*.tgmanchester.digital",
+]
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/login/"
