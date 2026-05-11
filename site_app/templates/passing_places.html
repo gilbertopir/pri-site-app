@@ -131,7 +131,10 @@
 
     <!-- Photos -->
     <div class="mb-3">
-        <label class="form-label fw-semibold">Photos <span class="text-muted fw-normal">(optional — max 3)</span></label>
+        <label class="form-label fw-semibold">
+            Photos <span class="text-muted fw-normal">(optional — max 3)</span>
+            <span id="quality-badge" class="badge bg-secondary ms-2 small"></span>
+        </label>
         <div class="alert alert-info py-2 small mb-2">
             <i class="bi bi-lightbulb me-1"></i>
             <strong>Tip:</strong> Take photos with your camera app first, then come back here and select them from your gallery.
@@ -211,6 +214,11 @@
     const alignmentLine = {{ gps_line|safe }};
     const alignmentId   = {{ alignment.id }};
     const DISTANCE_WARNING_M = 50;
+
+    // Show current quality setting
+    const qLabels = { low: 'Low quality', medium: 'Medium quality', high: 'High quality' };
+    const qPreset = localStorage.getItem('photoQuality') || 'medium';
+    document.getElementById('quality-badge').textContent = qLabels[qPreset] || 'Medium quality';
 
     let capturedLat      = null;
     let capturedLon      = null;

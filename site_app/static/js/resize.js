@@ -1,13 +1,22 @@
 /**
  * resizeImages.js
- * Resizes an array of File objects using Canvas API before upload.
- * Max 1200px on longest side, JPEG quality 0.8
+ * Resizes images before upload using Canvas API.
+ * Quality preset read from localStorage — set in Tools page.
  */
 
-const MAX_PX      = 1200;
-const JPEG_QUALITY = 0.80;
+const QUALITY_PRESETS = {
+    low:    { maxPx: 1200, quality: 0.70 },
+    medium: { maxPx: 1600, quality: 0.85 },
+    high:   { maxPx: 2000, quality: 0.92 },
+};
+
+function getPreset() {
+    const key = localStorage.getItem('photoQuality') || 'medium';
+    return QUALITY_PRESETS[key] || QUALITY_PRESETS.medium;
+}
 
 function resizeImage(file) {
+    const preset = getPreset();
     return new Promise((resolve) => {
         const img    = new Image();
         const reader = new FileReader();
@@ -18,27 +27,26 @@ function resizeImage(file) {
             let w = img.width;
             let h = img.height;
 
-            if (w > MAX_PX || h > MAX_PX) {
-                if (w > h) { h = Math.round(h * MAX_PX / w); w = MAX_PX; }
-                else       { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
+            if (w > preset.maxPx || h > preset.maxPx) {
+                if (w > h) { h = Math.round(h * preset.maxPx / w); w = preset.maxPx; }
+                else       { w = Math.round(w * preset.maxPx / h); h = preset.maxPx; }
             }
 
-            const canvas    = document.createElement('canvas');
-            canvas.width    = w;
-            canvas.height   = h;
-            const ctx       = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
+            const canvas = document.createElement('canvas');
+            canvas.width  = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
             canvas.toBlob(blob => {
                 resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-            }, 'image/jpeg', JPEG_QUALITY);
+            }, 'image/jpeg', preset.quality);
         };
 
         reader.readAsDataURL(file);
     });
 }
 
-async function resizeFiles(files, maxCount = 3) {
-    const limited = Array.from(files).slice(0, maxCount);
+async function resizeFiles(files, maxCount) {
+    const limited = Array.from(files).slice(0, maxCount || files.length);
     return Promise.all(limited.map(resizeImage));
 }

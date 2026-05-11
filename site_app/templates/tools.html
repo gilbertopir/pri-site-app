@@ -152,6 +152,49 @@
     </div>
 </div>
 
+<!-- ==============================
+     Section 3 — Photo Quality
+     ============================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
+        <h6 class="fw-bold mb-1">
+            <i class="bi bi-camera me-2 text-primary"></i>Photo Upload Quality
+        </h6>
+        <p class="small text-muted mb-3">
+            Choose quality based on your signal. Setting is saved on this device.
+        </p>
+
+        <div class="row g-2 mb-3">
+            <div class="col-4">
+                <button class="quality-btn btn btn-outline-secondary w-100" data-preset="low">
+                    <i class="bi bi-signal-1 d-block mb-1" style="font-size:1.3rem"></i>
+                    <strong>Low</strong>
+                    <div class="small">~150KB</div>
+                    <div class="small text-muted">Poor signal</div>
+                </button>
+            </div>
+            <div class="col-4">
+                <button class="quality-btn btn btn-outline-secondary w-100" data-preset="medium">
+                    <i class="bi bi-signal-2 d-block mb-1" style="font-size:1.3rem"></i>
+                    <strong>Medium</strong>
+                    <div class="small">~400KB</div>
+                    <div class="small text-muted">Balanced</div>
+                </button>
+            </div>
+            <div class="col-4">
+                <button class="quality-btn btn btn-outline-secondary w-100" data-preset="high">
+                    <i class="bi bi-signal-3 d-block mb-1" style="font-size:1.3rem"></i>
+                    <strong>High</strong>
+                    <div class="small">~800KB</div>
+                    <div class="small text-muted">Good signal</div>
+                </button>
+            </div>
+        </div>
+
+        <div id="quality-status" class="small text-muted"></div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -210,5 +253,40 @@
         null
     );
     {% endif %}
+
+    // Photo quality settings
+    const QUALITY_PRESETS = {
+        low:    { maxPx: 1200, quality: 0.70, label: 'Low',    desc: '~150KB — poor signal'      },
+        medium: { maxPx: 1600, quality: 0.85, label: 'Medium', desc: '~400KB — balanced (default)' },
+        high:   { maxPx: 2000, quality: 0.92, label: 'High',   desc: '~800KB — best detail'       },
+    };
+
+    function loadQuality() {
+        return localStorage.getItem('photoQuality') || 'medium';
+    }
+
+    function saveQuality(preset) {
+        localStorage.setItem('photoQuality', preset);
+        updateQualityUI(preset);
+    }
+
+    function updateQualityUI(preset) {
+        document.querySelectorAll('.quality-btn').forEach(btn => {
+            const isActive = btn.dataset.preset === preset;
+            btn.className = isActive
+                ? 'quality-btn btn btn-primary w-100'
+                : 'quality-btn btn btn-outline-secondary w-100';
+        });
+        const p = QUALITY_PRESETS[preset];
+        document.getElementById('quality-status').innerHTML =
+            `<i class="bi bi-check-circle text-success me-1"></i>
+             <strong>${p.label}</strong> quality selected — ${p.desc}`;
+    }
+
+    // Initialise on load
+    document.querySelectorAll('.quality-btn').forEach(btn => {
+        btn.addEventListener('click', () => saveQuality(btn.dataset.preset));
+    });
+    updateQualityUI(loadQuality());
 </script>
 {% endblock %}
