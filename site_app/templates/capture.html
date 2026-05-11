@@ -161,9 +161,11 @@
 
     <!-- Photos -->
     <div class="mb-3">
-        <label class="form-label fw-semibold">
-            Photos <span class="text-muted fw-normal">(optional — select up to 3 from gallery)</span>
-        </label>
+        <label class="form-label fw-semibold">Photos <span class="text-muted fw-normal">(optional)</span></label>
+        <div class="alert alert-info py-2 small mb-2">
+            <i class="bi bi-lightbulb me-1"></i>
+            <strong>Tip:</strong> Take photos with your camera app first, then come back here and select them from your gallery.
+        </div>
         <input type="file" name="photos" id="photo-input"
                class="form-control" accept="image/*" multiple>
         <div id="photo-preview" class="mt-2 d-none">
