@@ -321,12 +321,16 @@
         );
     });
 
-    // Prevent form submit if no location
+    // Prevent form submit if no location and show spinner
     document.getElementById('passing-place-form').addEventListener('submit', function (e) {
         if (!capturedLat) {
             e.preventDefault();
             showStatus('danger', 'Please get your location first.');
+            return;
         }
+        const btn = document.getElementById('save-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Uploading... please wait';
     });
 
     // Photo preview

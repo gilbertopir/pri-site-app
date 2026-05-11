@@ -269,12 +269,16 @@
         );
     });
 
-    // Prevent form submit if no location captured
+    // Show spinner on form submit
     document.getElementById('capture-form').addEventListener('submit', function (e) {
         if (!locationCaptured) {
             e.preventDefault();
             showStatus('danger', 'Please get your location first before capturing.');
+            return;
         }
+        const btn = document.getElementById('save-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Uploading... please wait';
     });
 
     // Custom feature type toggle
