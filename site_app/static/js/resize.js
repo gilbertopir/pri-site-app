@@ -1,22 +1,12 @@
 /**
  * resizeImages.js
- * Resizes images before upload using Canvas API.
- * Quality preset read from localStorage — set in Tools page.
+ * Resizes images to max 1600px / 90% JPEG quality before upload.
  */
 
-const QUALITY_PRESETS = {
-    low:    { maxPx: 1200, quality: 0.70 },
-    medium: { maxPx: 1600, quality: 0.85 },
-    high:   { maxPx: 2000, quality: 0.92 },
-};
-
-function getPreset() {
-    const key = localStorage.getItem('photoQuality') || 'medium';
-    return QUALITY_PRESETS[key] || QUALITY_PRESETS.medium;
-}
+const MAX_PX       = 1600;
+const JPEG_QUALITY = 0.90;
 
 function resizeImage(file) {
-    const preset = getPreset();
     return new Promise((resolve) => {
         const img    = new Image();
         const reader = new FileReader();
@@ -27,9 +17,9 @@ function resizeImage(file) {
             let w = img.width;
             let h = img.height;
 
-            if (w > preset.maxPx || h > preset.maxPx) {
-                if (w > h) { h = Math.round(h * preset.maxPx / w); w = preset.maxPx; }
-                else       { w = Math.round(w * preset.maxPx / h); h = preset.maxPx; }
+            if (w > MAX_PX || h > MAX_PX) {
+                if (w > h) { h = Math.round(h * MAX_PX / w); w = MAX_PX; }
+                else       { w = Math.round(w * MAX_PX / h); h = MAX_PX; }
             }
 
             const canvas = document.createElement('canvas');
@@ -39,7 +29,7 @@ function resizeImage(file) {
 
             canvas.toBlob(blob => {
                 resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-            }, 'image/jpeg', preset.quality);
+            }, 'image/jpeg', JPEG_QUALITY);
         };
 
         reader.readAsDataURL(file);
