@@ -47,6 +47,7 @@ urlpatterns = [
     path("api/chainage-to-gps/<int:alignment_id>/",  views.api_chainage_to_gps,  name="api_chainage_to_gps"),
     path("api/capture/<int:alignment_id>/",          views.api_capture,          name="api_capture"),
     path("api/passing-place/<int:alignment_id>/",    views.api_passing_place,    name="api_passing_place"),
+    path("api/nearest-features/<int:alignment_id>/", views.api_nearest_features, name="api_nearest_features"),
 
     # -----------------------------
     # Exports

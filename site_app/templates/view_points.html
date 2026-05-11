@@ -85,8 +85,8 @@
                     </div>
                 </div>
                 <div class="ms-2 d-flex flex-column gap-1">
-                    <a href="https://www.google.com/maps/search/?api=1&query={{ f.latitude }},{{ f.longitude }}"
-                       target="_blank" class="btn btn-outline-primary btn-sm">
+                    <a href="geo:{{ f.latitude }},{{ f.longitude }}"
+                       class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-map"></i>
                     </a>
                     <button class="btn btn-outline-danger btn-sm"
@@ -157,8 +157,8 @@
                     </div>
                 </div>
                 <div class="ms-2 d-flex flex-column gap-1">
-                    <a href="https://www.google.com/maps/search/?api=1&query={{ pp.mid_latitude }},{{ pp.mid_longitude }}"
-                       target="_blank" class="btn btn-outline-primary btn-sm">
+                    <a href="geo:{{ pp.mid_latitude }},{{ pp.mid_longitude }}"
+                       class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-map"></i>
                     </a>
                     <button class="btn btn-outline-danger btn-sm"

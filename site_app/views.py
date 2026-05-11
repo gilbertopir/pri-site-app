@@ -301,8 +301,70 @@ def api_gps_to_chainage(request, alignment_id):
 
 
 # -----------------------------
-# AJAX — chainage to GPS
+# AJAX — nearest features to chainage
 # -----------------------------
+@login_required
+def api_nearest_features(request, alignment_id):
+    alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
+
+    try:
+        body     = json.loads(request.body)
+        chainage = float(body["chainage"])
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+    # Features
+    features_before = FeatureCapture.objects.filter(
+        alignment=alignment,
+        chainage_m__lte=chainage
+    ).order_by("-chainage_m").first()
+
+    features_ahead = FeatureCapture.objects.filter(
+        alignment=alignment,
+        chainage_m__gt=chainage
+    ).order_by("chainage_m").first()
+
+    # Passing places
+    pp_before = PassingPlace.objects.filter(
+        alignment=alignment,
+        mid_chainage_m__lte=chainage
+    ).order_by("-mid_chainage_m").first()
+
+    pp_ahead = PassingPlace.objects.filter(
+        alignment=alignment,
+        mid_chainage_m__gt=chainage
+    ).order_by("mid_chainage_m").first()
+
+    def feature_dict(f, current_chainage):
+        if f is None:
+            return None
+        dist = abs(f.chainage_m - current_chainage)
+        return {
+            "chainage":     round(f.chainage_m, 3),
+            "distance":     round(dist, 1),
+            "label":        f.get_feature_label(),
+            "condition":    f.condition,
+            "side":         f.side,
+        }
+
+    def pp_dict(pp, current_chainage):
+        if pp is None:
+            return None
+        dist = abs(pp.mid_chainage_m - current_chainage)
+        return {
+            "chainage":  round(pp.mid_chainage_m, 3),
+            "distance":  round(dist, 1),
+            "pp_id":     pp.pp_id,
+            "side":      pp.side,
+            "status":    pp.status,
+        }
+
+    return JsonResponse({
+        "feature_before":  feature_dict(features_before, chainage),
+        "feature_ahead":   feature_dict(features_ahead,  chainage),
+        "pp_before":       pp_dict(pp_before, chainage),
+        "pp_ahead":        pp_dict(pp_ahead,  chainage),
+    })
 @login_required
 def api_chainage_to_gps(request, alignment_id):
     alignment = get_object_or_404(Alignment, id=alignment_id, active=True)

@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Phone GPS — {{ alignment.name }}{% endblock %}
+{% block title %}Navigate — {{ alignment.name }}{% endblock %}
 
 {% block nav_gps %}active{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
-    <h5><i class="bi bi-phone me-2"></i>Phone GPS</h5>
+    <h5><i class="bi bi-compass me-2"></i>Navigate</h5>
     <small>{{ alignment.name }}</small>
 </div>
 
 <!-- GPS Status -->
 <div id="gps-status" class="alert alert-info py-2 mb-3">
-    <i class="bi bi-broadcast me-2"></i>Waiting for GPS location...
+    <i class="bi bi-broadcast me-2"></i>Tap "Get My Location" to begin
 </div>
 
 <!-- Distance warning -->
@@ -64,13 +64,83 @@
     </div>
 </div>
 
-<!-- Google Maps button — projected point -->
-<a id="maps-btn" href="#" target="_blank"
-   class="btn btn-success w-100 mb-3 d-none">
-    <i class="bi bi-map me-2"></i>Open Projected Point in Google Maps
+<!-- Get Location button -->
+<button id="get-location-btn" class="btn btn-primary w-100 mb-2">
+    <i class="bi bi-crosshair me-2"></i>Get My Location
+</button>
+
+<!-- GPS Accuracy badge -->
+<div id="accuracy-badge" class="d-none mb-3 text-center">
+    <span id="accuracy-pill" class="badge fs-6 px-3 py-2">
+        <i class="bi bi-broadcast me-1"></i>
+        Accuracy: <span id="accuracy-value">—</span>m
+    </span>
+    <div id="accuracy-hint" class="small mt-1"></div>
+</div>
+
+<!-- Open in map app button -->
+<a id="maps-btn" href="#" class="btn btn-success w-100 mb-3 d-none">
+    <i class="bi bi-map me-2"></i>Open Projected Point in Map App
 </a>
 
-<!-- Travel offset section — shown after location captured -->
+<!-- ==============================
+     Nearest Features
+     ============================== -->
+<div id="nearest-section" class="d-none mb-3">
+    <h6 class="fw-bold mb-2">
+        <i class="bi bi-pin-map me-2 text-primary"></i>Nearest Captured Features
+    </h6>
+
+    <!-- Features -->
+    <div class="row g-2 mb-2">
+        <div class="col-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-2">
+                    <div class="small text-muted mb-1">
+                        <i class="bi bi-arrow-left me-1"></i>Feature Behind
+                    </div>
+                    <div id="feature-before" class="small">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-2">
+                    <div class="small text-muted mb-1">
+                        <i class="bi bi-arrow-right me-1"></i>Feature Ahead
+                    </div>
+                    <div id="feature-ahead" class="small">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Passing Places -->
+    <div class="row g-2">
+        <div class="col-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-2">
+                    <div class="small text-muted mb-1">
+                        <i class="bi bi-arrow-left me-1"></i>Passing Place Behind
+                    </div>
+                    <div id="pp-before" class="small">—</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-2">
+                    <div class="small text-muted mb-1">
+                        <i class="bi bi-arrow-right me-1"></i>Passing Place Ahead
+                    </div>
+                    <div id="pp-ahead" class="small">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Travel offset section -->
 <div id="offset-section" class="d-none">
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3">
@@ -78,8 +148,7 @@
                 <i class="bi bi-signpost-2 me-2 text-primary"></i>Travel to Point
             </h6>
             <p class="small text-muted mb-3">
-                Enter a distance along the alignment from your current position.
-                Positive = forward, negative = back.
+                Enter a distance along the alignment. Positive = forward, negative = back.
             </p>
             <div class="input-group mb-3">
                 <input type="number" id="offset-input" class="form-control form-control-lg"
@@ -90,7 +159,6 @@
                 <i class="bi bi-calculator me-2"></i>Calculate Target Point
             </button>
 
-            <!-- Target result -->
             <div id="offset-result" class="d-none mt-3">
                 <div class="row g-2 mb-2">
                     <div class="col-6">
@@ -120,27 +188,13 @@
                         </div>
                     </div>
                 </div>
-                <a id="navigate-btn" href="#" target="_blank"
+                <a id="navigate-btn" href="#"
                    class="btn btn-success w-100">
                     <i class="bi bi-navigation me-2"></i>Navigate to Target Point
                 </a>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Get Location button -->
-<button id="get-location-btn" class="btn btn-primary w-100 mb-2">
-    <i class="bi bi-crosshair me-2"></i>Get My Location
-</button>
-
-<!-- GPS Accuracy badge -->
-<div id="accuracy-badge" class="d-none mb-3 text-center">
-    <span id="accuracy-pill" class="badge fs-6 px-3 py-2">
-        <i class="bi bi-broadcast me-1"></i>
-        Accuracy: <span id="accuracy-value">—</span>m
-    </span>
-    <div id="accuracy-hint" class="small mt-1"></div>
 </div>
 
 <!-- Map -->
@@ -150,18 +204,14 @@
 
 {% block extra_js %}
 <script>
-    // Alignment polyline data from Django
-    const alignmentLine = {{ gps_line|safe }};
-    const alignmentId   = {{ alignment.id }};
+    const alignmentLine      = {{ gps_line|safe }};
+    const alignmentId        = {{ alignment.id }};
     const DISTANCE_WARNING_M = 50;
 
-    // Initialise map
     const map = L.map('map').setView([alignmentLine[0][0], alignmentLine[0][1]], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-
-    // Draw alignment
     L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
 
     let phoneMarker   = null;
@@ -175,9 +225,7 @@
 
         if (!navigator.geolocation) {
             showStatus('danger', 'Geolocation is not supported by this browser.');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
-            return;
+            resetBtn(btn); return;
         }
 
         navigator.geolocation.getCurrentPosition(
@@ -186,10 +234,8 @@
                 const lon = position.coords.longitude;
                 const acc = position.coords.accuracy;
 
-                // Show accuracy badge
                 showAccuracy(acc);
 
-                // Send to Django API
                 fetch(`/api/gps-to-chainage/${alignmentId}/`, {
                     method: 'POST',
                     headers: {
@@ -200,12 +246,8 @@
                 })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.error) {
-                        showStatus('danger', data.error);
-                        return;
-                    }
+                    if (data.error) { showStatus('danger', data.error); return; }
 
-                    // Update metrics
                     document.getElementById('chainage').textContent       = data.chainage.toFixed(3);
                     document.getElementById('dist-alignment').textContent = data.distance_from_alignment.toFixed(3);
                     document.getElementById('easting').textContent        = data.easting.toFixed(3);
@@ -213,27 +255,25 @@
                     document.getElementById('latitude').textContent       = data.latitude.toFixed(8);
                     document.getElementById('longitude').textContent      = data.longitude.toFixed(8);
 
-                    // Distance warning
                     const warn = document.getElementById('distance-warning');
                     if (data.distance_from_alignment > DISTANCE_WARNING_M) {
                         warn.classList.remove('d-none');
                         document.getElementById('distance-warning-text').textContent =
-                            `You are ${data.distance_from_alignment.toFixed(1)}m from the alignment — check your location.`;
+                            `You are ${data.distance_from_alignment.toFixed(1)}m from the alignment.`;
                     } else {
                         warn.classList.add('d-none');
                     }
 
-                    // Show Google Maps button
+                    // geo: link works with Organic Maps, OsmAnd, Google Maps etc.
                     const mapsBtn = document.getElementById('maps-btn');
                     mapsBtn.classList.remove('d-none');
-                    mapsBtn.href = `https://www.google.com/maps/search/?api=1&query=${data.latitude},${data.longitude}`;
+                    mapsBtn.href = `geo:${data.latitude},${data.longitude}`;
 
-                    // Show offset section and store current chainage
                     document.getElementById('offset-section').classList.remove('d-none');
                     document.getElementById('offset-result').classList.add('d-none');
                     window.currentChainage = data.chainage;
 
-                    // Update map markers
+                    // Update map
                     const projLatLon  = [data.latitude,  data.longitude];
                     const phoneLatLon = [lat, lon];
 
@@ -255,7 +295,7 @@
                             html: '<div style="background:#198754;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
                             iconAnchor: [7, 7]
                         })
-                    }).bindPopup('Your GPS location').addTo(map);
+                    }).bindPopup('Your GPS').addTo(map);
 
                     connectLine = L.polyline([phoneLatLon, projLatLon], {
                         color: '#ffc107', weight: 3, dashArray: '6'
@@ -263,38 +303,82 @@
 
                     map.setView(projLatLon, 17);
 
-                    showStatus('success', `Location captured — Chainage: ${data.chainage.toFixed(3)}m`);
+                    showStatus('success', `Chainage: ${data.chainage.toFixed(3)}m`);
+
+                    // Fetch nearest features
+                    fetchNearestFeatures(data.chainage);
                 })
                 .catch(err => showStatus('danger', 'Error: ' + err.message))
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
-                });
+                .finally(() => resetBtn(btn));
             },
             function (err) {
                 showStatus('danger', 'GPS error: ' + err.message);
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
+                resetBtn(btn);
             },
             {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
         );
     });
 
-    // Calculate target point from offset
+    function fetchNearestFeatures(chainage) {
+        fetch(`/api/nearest-features/${alignmentId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({chainage: chainage})
+        })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('nearest-section').classList.remove('d-none');
+
+            document.getElementById('feature-before').innerHTML =
+                data.feature_before
+                ? `<strong>${data.feature_before.label}</strong><br>
+                   Ch: ${data.feature_before.chainage}m<br>
+                   <span class="text-danger fw-bold">← ${data.feature_before.distance}m back</span><br>
+                   ${data.feature_before.side} | ${data.feature_before.condition}`
+                : '<span class="text-muted">None recorded</span>';
+
+            document.getElementById('feature-ahead').innerHTML =
+                data.feature_ahead
+                ? `<strong>${data.feature_ahead.label}</strong><br>
+                   Ch: ${data.feature_ahead.chainage}m<br>
+                   <span class="text-success fw-bold">→ ${data.feature_ahead.distance}m ahead</span><br>
+                   ${data.feature_ahead.side} | ${data.feature_ahead.condition}`
+                : '<span class="text-muted">None recorded</span>';
+
+            document.getElementById('pp-before').innerHTML =
+                data.pp_before
+                ? `<strong>${data.pp_before.pp_id}</strong><br>
+                   Ch: ${data.pp_before.chainage}m<br>
+                   <span class="text-danger fw-bold">← ${data.pp_before.distance}m back</span><br>
+                   ${data.pp_before.side} | ${data.pp_before.status}`
+                : '<span class="text-muted">None recorded</span>';
+
+            document.getElementById('pp-ahead').innerHTML =
+                data.pp_ahead
+                ? `<strong>${data.pp_ahead.pp_id}</strong><br>
+                   Ch: ${data.pp_ahead.chainage}m<br>
+                   <span class="text-success fw-bold">→ ${data.pp_ahead.distance}m ahead</span><br>
+                   ${data.pp_ahead.side} | ${data.pp_ahead.status}`
+                : '<span class="text-muted">None recorded</span>';
+        })
+        .catch(err => console.log('Nearest features error:', err));
+    }
+
+    // Travel offset calculation
     document.getElementById('calc-offset-btn').addEventListener('click', function () {
         const offset = parseFloat(document.getElementById('offset-input').value);
 
         if (isNaN(offset)) {
-            alert('Please enter a valid distance (positive or negative).');
+            alert('Please enter a valid distance.');
             return;
         }
-
         if (window.currentChainage === undefined) {
             alert('Please get your location first.');
             return;
         }
-
-        const targetChainage = window.currentChainage + offset;
 
         const btn = this;
         btn.disabled = true;
@@ -306,24 +390,20 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: JSON.stringify({chainage: targetChainage})
+            body: JSON.stringify({chainage: window.currentChainage + offset})
         })
         .then(r => r.json())
         .then(data => {
-            if (data.error) {
-                alert('Error: ' + data.error);
-                return;
-            }
+            if (data.error) { alert('Error: ' + data.error); return; }
 
-            // Show results
             document.getElementById('target-chainage').textContent = data.chainage.toFixed(3);
             document.getElementById('target-distance').textContent = Math.abs(offset).toFixed(1);
             document.getElementById('target-easting').textContent  = data.easting.toFixed(3);
             document.getElementById('target-northing').textContent = data.northing.toFixed(3);
 
-            // Navigation URL — opens Google Maps in directions mode
+            // geo: URI for navigation — works with Organic Maps, OsmAnd, Google Maps
             document.getElementById('navigate-btn').href =
-                `https://www.google.com/maps/dir/?api=1&destination=${data.latitude},${data.longitude}`;
+                `geo:0,0?q=${data.latitude},${data.longitude}`;
 
             document.getElementById('offset-result').classList.remove('d-none');
         })
@@ -338,27 +418,30 @@
         const badge   = document.getElementById('accuracy-badge');
         const pill    = document.getElementById('accuracy-pill');
         const hint    = document.getElementById('accuracy-hint');
-        const rounded = Math.round(acc);
-
         badge.classList.remove('d-none');
-        document.getElementById('accuracy-value').textContent = rounded;
-
+        document.getElementById('accuracy-value').textContent = Math.round(acc);
         if (acc <= 10) {
             pill.className = 'badge fs-6 px-3 py-2 bg-success';
             hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Excellent — good to capture';
         } else if (acc <= 20) {
             pill.className = 'badge fs-6 px-3 py-2 bg-warning text-dark';
-            hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Fair — consider waiting for better signal';
+            hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Fair — consider waiting';
         } else {
             pill.className = 'badge fs-6 px-3 py-2 bg-danger';
-            hint.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i>Poor — move to open ground or wait';
+            hint.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i>Poor — move to open ground';
         }
     }
 
     function showStatus(type, msg) {
-        const el = document.getElementById('gps-status');
+        const el   = document.getElementById('gps-status');
         el.className = `alert alert-${type} py-2 mb-3`;
-        el.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'broadcast'} me-2"></i>${msg}`;
+        const icon = type === 'success' ? 'check-circle' : type === 'danger' ? 'x-circle' : 'broadcast';
+        el.innerHTML = `<i class="bi bi-${icon} me-2"></i>${msg}`;
+    }
+
+    function resetBtn(btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get My Location';
     }
 
     function getCookie(name) {
