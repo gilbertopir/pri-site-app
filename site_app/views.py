@@ -469,8 +469,35 @@ def api_passing_place(request, alignment_id):
 
 
 # -----------------------------
-# Admin export page
+# AJAX — add photos to existing feature
 # -----------------------------
+@login_required
+def api_add_feature_photos(request, feature_id):
+    feature = get_object_or_404(FeatureCapture, id=feature_id)
+    photos  = request.FILES.getlist("photos")
+    if not photos:
+        return JsonResponse({"error": "No photos received"}, status=400)
+    saved = []
+    for photo in photos:
+        fp = FeaturePhoto.objects.create(feature=feature, photo=photo)
+        saved.append(fp.photo.url)
+    return JsonResponse({"success": True, "urls": saved, "count": len(saved)})
+
+
+# -----------------------------
+# AJAX — add photos to existing passing place
+# -----------------------------
+@login_required
+def api_add_pp_photos(request, pp_id):
+    pp     = get_object_or_404(PassingPlace, id=pp_id)
+    photos = request.FILES.getlist("photos")
+    if not photos:
+        return JsonResponse({"error": "No photos received"}, status=400)
+    saved = []
+    for photo in photos:
+        pp_photo = PassingPlacePhoto.objects.create(passing_place=pp, photo=photo)
+        saved.append(pp_photo.photo.url)
+    return JsonResponse({"success": True, "urls": saved, "count": len(saved)})
 @login_required
 def admin_export(request):
     if not request.user.is_staff:

@@ -131,16 +131,16 @@
 
     <!-- Photos -->
     <div class="mb-3">
-        <label class="form-label fw-semibold">Photos <span class="text-muted fw-normal">(optional)</span></label>
+        <label class="form-label fw-semibold">Photos <span class="text-muted fw-normal">(optional — max 3)</span></label>
         <div class="alert alert-info py-2 small mb-2">
             <i class="bi bi-lightbulb me-1"></i>
             <strong>Tip:</strong> Take photos with your camera app first, then come back here and select them from your gallery.
         </div>
         <input type="file" name="photos" id="photo-input"
                class="form-control" accept="image/*" multiple>
+        <div class="small text-muted mt-1" id="photo-counter"></div>
         <div id="photo-preview" class="mt-2 d-none">
             <div id="photo-thumbs" class="d-flex gap-2 flex-wrap"></div>
-            <div class="small text-muted mt-1" id="photo-name"></div>
         </div>
     </div>
 
@@ -206,6 +206,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/resize.js"></script>
 <script>
     const alignmentLine = {{ gps_line|safe }};
     const alignmentId   = {{ alignment.id }};
@@ -322,27 +323,58 @@
         );
     });
 
-    // Prevent form submit if no location and show spinner
-    document.getElementById('passing-place-form').addEventListener('submit', function (e) {
+    // Intercept submit — resize images then submit
+    document.getElementById('passing-place-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
         if (!capturedLat) {
-            e.preventDefault();
             showStatus('danger', 'Please get your location first.');
             return;
         }
+
         const btn = document.getElementById('save-btn');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Uploading... please wait';
+
+        try {
+            const formData   = new FormData(this);
+            const photoInput = document.getElementById('photo-input');
+
+            formData.delete('photos');
+            if (photoInput.files.length > 0) {
+                const resized = await resizeFiles(photoInput.files, 3);
+                resized.forEach(f => formData.append('photos', f));
+            }
+
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else if (response.ok) {
+                window.location.reload();
+            }
+        } catch (err) {
+            showStatus('danger', 'Upload error: ' + err.message);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-save me-2"></i>Save Passing Place';
+        }
     });
 
-    // Photo preview — multiple files
+    // Photo preview — multiple files with counter
     document.getElementById('photo-input').addEventListener('change', function () {
         const preview = document.getElementById('photo-preview');
         const thumbs  = document.getElementById('photo-thumbs');
-        const name    = document.getElementById('photo-name');
+        const counter = document.getElementById('photo-counter');
         thumbs.innerHTML = '';
 
         if (this.files && this.files.length > 0) {
             const files = Array.from(this.files).slice(0, 3);
+            counter.textContent = `${files.length} of 3 photo(s) selected`;
+            counter.className = files.length === 3 ? 'small text-warning mt-1' : 'small text-muted mt-1';
+
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = e => {
@@ -356,9 +388,9 @@
                 };
                 reader.readAsDataURL(file);
             });
-            name.textContent = `${files.length} photo(s) selected`;
             preview.classList.remove('d-none');
         } else {
+            counter.textContent = '';
             preview.classList.add('d-none');
         }
     });

@@ -91,6 +91,10 @@
                        class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-map"></i>
                     </a>
+                    <button class="btn btn-outline-success btn-sm"
+                            onclick="openAddPhotos('feature', {{ f.id }})">
+                        <i class="bi bi-camera"></i>
+                    </button>
                     <button class="btn btn-outline-danger btn-sm"
                             onclick="confirmDelete('{% url 'delete_feature' f.id %}')">
                         <i class="bi bi-trash"></i>
@@ -165,6 +169,10 @@
                        class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-map"></i>
                     </a>
+                    <button class="btn btn-outline-success btn-sm"
+                            onclick="openAddPhotos('pp', {{ pp.id }})">
+                        <i class="bi bi-camera"></i>
+                    </button>
                     <button class="btn btn-outline-danger btn-sm"
                             onclick="confirmDelete('{% url 'delete_passing_place' pp.id %}')">
                         <i class="bi bi-trash"></i>
@@ -204,9 +212,44 @@
     </div>
 </div>
 
+<!-- Add Photos Modal -->
+<div class="modal fade" id="addPhotosModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h6 class="modal-title fw-bold">
+                    <i class="bi bi-camera me-2"></i>Add Photos
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 small">
+                    <i class="bi bi-lightbulb me-1"></i>
+                    Photos will be resized automatically before upload.
+                </div>
+                <input type="file" id="add-photos-input" class="form-control"
+                       accept="image/*" multiple>
+                <div class="small text-muted mt-1" id="add-photos-counter"></div>
+                <div id="add-photos-preview" class="mt-2 d-none">
+                    <div id="add-photos-thumbs" class="d-flex gap-2 flex-wrap"></div>
+                </div>
+                <div id="add-photos-status" class="mt-2"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="add-photos-btn" class="btn btn-success">
+                    <i class="bi bi-upload me-1"></i>Upload Photos
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src="/static/js/resize.js"></script>
 <script>
     const alignmentLine = {{ gps_line|safe }};
 
@@ -268,6 +311,86 @@
     function confirmDelete(url) {
         document.getElementById('delete-confirm-btn').href = url;
         new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    let addPhotoType = null;
+    let addPhotoId   = null;
+
+    function openAddPhotos(type, id) {
+        addPhotoType = type;
+        addPhotoId   = id;
+        document.getElementById('add-photos-input').value = '';
+        document.getElementById('add-photos-counter').textContent = '';
+        document.getElementById('add-photos-thumbs').innerHTML = '';
+        document.getElementById('add-photos-preview').classList.add('d-none');
+        document.getElementById('add-photos-status').innerHTML = '';
+        new bootstrap.Modal(document.getElementById('addPhotosModal')).show();
+    }
+
+    document.getElementById('add-photos-input').addEventListener('change', function () {
+        const thumbs  = document.getElementById('add-photos-thumbs');
+        const counter = document.getElementById('add-photos-counter');
+        const preview = document.getElementById('add-photos-preview');
+        thumbs.innerHTML = '';
+        if (this.files && this.files.length > 0) {
+            counter.textContent = this.files.length + ' photo(s) selected';
+            Array.from(this.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-fluid rounded';
+                    img.style.maxHeight = '100px';
+                    img.style.maxWidth  = '100px';
+                    img.style.objectFit = 'cover';
+                    thumbs.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+            preview.classList.remove('d-none');
+        }
+    });
+
+    document.getElementById('add-photos-btn').addEventListener('click', async function () {
+        const input  = document.getElementById('add-photos-input');
+        const status = document.getElementById('add-photos-status');
+        if (!input.files.length) {
+            status.innerHTML = '<div class="alert alert-warning py-2 small">Please select at least one photo.</div>';
+            return;
+        }
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+        try {
+            const resized  = await resizeFiles(input.files, input.files.length);
+            const formData = new FormData();
+            resized.forEach(f => formData.append('photos', f));
+            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            const url = addPhotoType === 'feature'
+                ? '/api/add-feature-photos/' + addPhotoId + '/'
+                : '/api/add-pp-photos/' + addPhotoId + '/';
+            const response = await fetch(url, { method: 'POST', body: formData });
+            const data     = await response.json();
+            if (data.success) {
+                status.innerHTML = '<div class="alert alert-success py-2 small">uploaded ' + data.count + ' photo(s).</div>';
+                setTimeout(() => {
+                    bootstrap.Modal.getInstance(document.getElementById('addPhotosModal')).hide();
+                    window.location.reload();
+                }, 1200);
+            } else {
+                status.innerHTML = '<div class="alert alert-danger py-2 small">' + data.error + '</div>';
+            }
+        } catch (err) {
+            status.innerHTML = '<div class="alert alert-danger py-2 small">' + err.message + '</div>';
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-upload me-1"></i>Upload Photos';
+        }
+    });
+
+    function getCookie(name) {
+        const value = '; ' + document.cookie;
+        const parts = value.split('; ' + name + '=');
+        if (parts.length === 2) return parts.pop().split(';').shift();
     }
 </script>
 {% endblock %}

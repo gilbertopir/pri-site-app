@@ -48,6 +48,8 @@ urlpatterns = [
     path("api/capture/<int:alignment_id>/",          views.api_capture,          name="api_capture"),
     path("api/passing-place/<int:alignment_id>/",    views.api_passing_place,    name="api_passing_place"),
     path("api/nearest-features/<int:alignment_id>/", views.api_nearest_features, name="api_nearest_features"),
+    path("api/add-feature-photos/<int:feature_id>/", views.api_add_feature_photos, name="api_add_feature_photos"),
+    path("api/add-pp-photos/<int:pp_id>/",           views.api_add_pp_photos,     name="api_add_pp_photos"),
 
     # -----------------------------
     # Exports
