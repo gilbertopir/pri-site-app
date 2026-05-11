@@ -68,10 +68,12 @@
                     {% if f.notes %}
                     <div class="small text-muted fst-italic mt-1">{{ f.notes }}</div>
                     {% endif %}
-                    {% if f.photo %}
-                    <div class="mt-2">
-                        <img src="{{ f.photo.url }}" alt="Photo"
-                             class="img-fluid rounded" style="max-height:150px">
+                    {% if f.photos.all %}
+                    <div class="mt-2 d-flex gap-2 flex-wrap">
+                        {% for fp in f.photos.all %}
+                        <img src="{{ fp.photo.url }}" alt="Photo"
+                             class="img-fluid rounded" style="max-height:120px;max-width:120px;object-fit:cover;">
+                        {% endfor %}
                     </div>
                     {% endif %}
                     <div class="small text-muted mt-1">
@@ -140,10 +142,12 @@
                     {% if pp.notes %}
                     <div class="small text-muted fst-italic mt-1">{{ pp.notes }}</div>
                     {% endif %}
-                    {% if pp.photo %}
-                    <div class="mt-2">
-                        <img src="{{ pp.photo.url }}" alt="Photo"
-                             class="img-fluid rounded" style="max-height:150px">
+                    {% if pp.photos.all %}
+                    <div class="mt-2 d-flex gap-2 flex-wrap">
+                        {% for pp_photo in pp.photos.all %}
+                        <img src="{{ pp_photo.photo.url }}" alt="Photo"
+                             class="img-fluid rounded" style="max-height:120px;max-width:120px;object-fit:cover;">
+                        {% endfor %}
                     </div>
                     {% endif %}
                     <div class="small text-muted mt-1">

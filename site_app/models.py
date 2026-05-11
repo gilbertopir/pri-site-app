@@ -103,7 +103,7 @@ class FeatureCapture(models.Model):
 
     alignment             = models.ForeignKey(Alignment, on_delete=models.CASCADE, related_name="features")
     feature_type          = models.CharField(max_length=100, choices=FEATURE_TYPES)
-    custom_feature_type   = models.CharField(max_length=100, blank=True)  # used when Custom / Other
+    custom_feature_type   = models.CharField(max_length=100, blank=True)
     side                  = models.CharField(max_length=10, choices=SIDE_CHOICES)
     condition             = models.CharField(max_length=10, choices=CONDITION_CHOICES)
     offset_from_edge_m    = models.FloatField(default=0.0)
@@ -115,7 +115,6 @@ class FeatureCapture(models.Model):
     longitude             = models.FloatField()
     easting               = models.FloatField()
     northing              = models.FloatField()
-    photo                 = models.ImageField(upload_to="photos/", blank=True, null=True)
     gps_accuracy_m        = models.FloatField(null=True, blank=True)
     captured_by           = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="features")
     captured_at           = models.DateTimeField(auto_now_add=True)
@@ -146,7 +145,7 @@ class PassingPlace(models.Model):
     ]
 
     alignment     = models.ForeignKey(Alignment, on_delete=models.CASCADE, related_name="passing_places")
-    pp_id         = models.CharField(max_length=10)   # e.g. PP001
+    pp_id         = models.CharField(max_length=10)
     side          = models.CharField(max_length=10, choices=SIDE_CHOICES)
     status        = models.CharField(max_length=10, choices=STATUS_CHOICES)
     mid_chainage_m= models.FloatField()
@@ -158,7 +157,6 @@ class PassingPlace(models.Model):
     length_m      = models.FloatField(default=0.0)
     notes         = models.TextField(blank=True)
     gps_accuracy_m = models.FloatField(null=True, blank=True)
-    photo         = models.ImageField(upload_to="photos/", blank=True, null=True)
     captured_by   = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="passing_places")
     captured_at   = models.DateTimeField(auto_now_add=True)
 
@@ -167,3 +165,27 @@ class PassingPlace(models.Model):
 
     class Meta:
         ordering = ["mid_chainage_m"]
+
+
+# -----------------------------
+# Feature Photos
+# -----------------------------
+class FeaturePhoto(models.Model):
+    feature     = models.ForeignKey(FeatureCapture, on_delete=models.CASCADE, related_name="photos")
+    photo       = models.ImageField(upload_to="photos/features/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Photo for {self.feature} — {self.uploaded_at}"
+
+
+# -----------------------------
+# Passing Place Photos
+# -----------------------------
+class PassingPlacePhoto(models.Model):
+    passing_place = models.ForeignKey(PassingPlace, on_delete=models.CASCADE, related_name="photos")
+    photo         = models.ImageField(upload_to="photos/passing_places/")
+    uploaded_at   = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Photo for {self.passing_place} — {self.uploaded_at}"

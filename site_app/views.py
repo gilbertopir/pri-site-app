@@ -10,7 +10,7 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.conf import settings
 
-from .models import Alignment, FeatureCapture, PassingPlace
+from .models import Alignment, FeatureCapture, PassingPlace, FeaturePhoto, PassingPlacePhoto
 from .utils import (
     load_alignment_from_dxf,
     get_available_dxf_files,
@@ -114,9 +114,9 @@ def capture(request, alignment_id):
         projected    = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
         feature_type = request.POST.get("feature_type", "")
         custom_type  = request.POST.get("custom_feature_type", "")
-        photo        = request.FILES.get("photo")
+        photos       = request.FILES.getlist("photos")
 
-        FeatureCapture.objects.create(
+        feature = FeatureCapture.objects.create(
             alignment             = alignment,
             feature_type          = feature_type,
             custom_feature_type   = custom_type,
@@ -131,14 +131,17 @@ def capture(request, alignment_id):
             longitude             = projected["longitude"],
             easting               = projected["easting"],
             northing              = projected["northing"],
-            photo                 = photo,
             gps_accuracy_m        = float(request.POST.get("gps_accuracy", 0) or 0),
             captured_by           = request.user,
         )
 
+        # Save multiple photos
+        for photo in photos:
+            FeaturePhoto.objects.create(feature=feature, photo=photo)
+
         messages.success(
             request,
-            f"✅ Captured: {custom_type or feature_type} at chainage {projected['chainage']}m"
+            f"✅ Captured: {custom_type or feature_type} at chainage {projected['chainage']}m — {len(photos)} photo(s)"
         )
         return redirect("capture", alignment_id=alignment_id)
 
@@ -180,9 +183,9 @@ def passing_places(request, alignment_id):
             })
 
         projected = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
-        photo     = request.FILES.get("photo")
+        photos    = request.FILES.getlist("photos")
 
-        PassingPlace.objects.create(
+        pp = PassingPlace.objects.create(
             alignment      = alignment,
             pp_id          = next_id,
             side           = request.POST.get("side", "LHS"),
@@ -196,13 +199,16 @@ def passing_places(request, alignment_id):
             length_m       = float(request.POST.get("length_m", 0) or 0),
             notes          = request.POST.get("notes", ""),
             gps_accuracy_m = float(request.POST.get("gps_accuracy", 0) or 0),
-            photo          = photo,
             captured_by    = request.user,
         )
 
+        # Save multiple photos
+        for photo in photos:
+            PassingPlacePhoto.objects.create(passing_place=pp, photo=photo)
+
         messages.success(
             request,
-            f"✅ Saved: {next_id} at chainage {projected['chainage']}m"
+            f"✅ Saved: {next_id} at chainage {projected['chainage']}m — {len(photos)} photo(s)"
         )
         return redirect("passing_places", alignment_id=alignment_id)
 
@@ -515,13 +521,13 @@ def export_zip(request, alignment_id):
         cell.alignment = XLAlign(horizontal="center")
 
     for f in features:
-        photo_name = Path(f.photo.name).name if f.photo else ""
+        photo_names = ", ".join([Path(fp.photo.name).name for fp in f.photos.all()])
         ws1.append([
             f.id, f.get_feature_label(), f.side, f.condition,
             f.offset_from_edge_m, f.distance_along_edge_m,
             f.chainage_m, f.distance_from_alignment_m,
             f.latitude, f.longitude, f.easting, f.northing,
-            f.gps_accuracy_m, photo_name,
+            f.gps_accuracy_m, photo_names,
             f.notes,
             f.captured_by.username if f.captured_by else "",
             f.captured_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -546,13 +552,13 @@ def export_zip(request, alignment_id):
         cell.alignment = XLAlign(horizontal="center")
 
     for pp in pp_list:
-        photo_name = Path(pp.photo.name).name if pp.photo else ""
+        photo_names = ", ".join([Path(pp_photo.photo.name).name for pp_photo in pp.photos.all()])
         ws2.append([
             pp.id, pp.pp_id, pp.side, pp.status,
             pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
             pp.mid_easting, pp.mid_northing,
             pp.width_m, pp.length_m,
-            pp.gps_accuracy_m, photo_name,
+            pp.gps_accuracy_m, photo_names,
             pp.notes,
             pp.captured_by.username if pp.captured_by else "",
             pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -586,22 +592,22 @@ def export_zip(request, alignment_id):
 
         # Add feature photos
         for f in features:
-            if f.photo:
-                photo_path = Path(settings.MEDIA_ROOT) / f.photo.name
+            for fp in f.photos.all():
+                photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
                 if photo_path.exists():
                     zf.write(
                         photo_path,
-                        f"{folder}/photos/{Path(f.photo.name).name}"
+                        f"{folder}/photos/features/{Path(fp.photo.name).name}"
                     )
 
         # Add passing place photos
         for pp in pp_list:
-            if pp.photo:
-                photo_path = Path(settings.MEDIA_ROOT) / pp.photo.name
+            for pp_photo in pp.photos.all():
+                photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
                 if photo_path.exists():
                     zf.write(
                         photo_path,
-                        f"{folder}/photos/{Path(pp.photo.name).name}"
+                        f"{folder}/photos/passing_places/{Path(pp_photo.photo.name).name}"
                     )
 
     zip_buffer.seek(0)

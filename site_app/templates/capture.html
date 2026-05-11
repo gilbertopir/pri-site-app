@@ -159,16 +159,15 @@
                   placeholder="e.g. damaged, obscured, requires action..."></textarea>
     </div>
 
-    <!-- Photo -->
+    <!-- Photos -->
     <div class="mb-3">
         <label class="form-label fw-semibold">
-            Photo <span class="text-muted fw-normal">(optional — select from gallery)</span>
+            Photos <span class="text-muted fw-normal">(optional — select up to 3 from gallery)</span>
         </label>
-        <input type="file" name="photo" id="photo-input"
-               class="form-control" accept="image/*">
+        <input type="file" name="photos" id="photo-input"
+               class="form-control" accept="image/*" multiple>
         <div id="photo-preview" class="mt-2 d-none">
-            <img id="photo-img" src="#" alt="Preview"
-                 class="img-fluid rounded" style="max-height:200px">
+            <div id="photo-thumbs" class="d-flex gap-2 flex-wrap"></div>
             <div class="small text-muted mt-1" id="photo-name"></div>
         </div>
     </div>
@@ -293,16 +292,30 @@
     document.getElementById('feature-type').addEventListener('change', toggleCustomType);
     toggleCustomType();
 
-    // Photo preview
+    // Photo preview — multiple files
     document.getElementById('photo-input').addEventListener('change', function () {
         const preview = document.getElementById('photo-preview');
-        const img     = document.getElementById('photo-img');
+        const thumbs  = document.getElementById('photo-thumbs');
         const name    = document.getElementById('photo-name');
-        if (this.files && this.files[0]) {
-            const reader = new FileReader();
-            reader.onload = e => { img.src = e.target.result; };
-            reader.readAsDataURL(this.files[0]);
-            name.textContent = this.files[0].name;
+        thumbs.innerHTML = '';
+
+        if (this.files && this.files.length > 0) {
+            // Limit to 3
+            const files = Array.from(this.files).slice(0, 3);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'img-fluid rounded';
+                    img.style.maxHeight = '120px';
+                    img.style.maxWidth  = '120px';
+                    img.style.objectFit = 'cover';
+                    thumbs.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+            name.textContent = `${files.length} photo(s) selected`;
             preview.classList.remove('d-none');
         } else {
             preview.classList.add('d-none');
