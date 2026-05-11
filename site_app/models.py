@@ -175,6 +175,12 @@ class FeaturePhoto(models.Model):
     photo       = models.ImageField(upload_to="photos/features/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
+    def delete(self, *args, **kwargs):
+        import os
+        if self.photo and os.path.isfile(self.photo.path):
+            os.remove(self.photo.path)
+        super().delete(*args, **kwargs)
+
     def __str__(self):
         return f"Photo for {self.feature} — {self.uploaded_at}"
 
@@ -186,6 +192,12 @@ class PassingPlacePhoto(models.Model):
     passing_place = models.ForeignKey(PassingPlace, on_delete=models.CASCADE, related_name="photos")
     photo         = models.ImageField(upload_to="photos/passing_places/")
     uploaded_at   = models.DateTimeField(auto_now_add=True)
+
+    def delete(self, *args, **kwargs):
+        import os
+        if self.photo and os.path.isfile(self.photo.path):
+            os.remove(self.photo.path)
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"Photo for {self.passing_place} — {self.uploaded_at}"
