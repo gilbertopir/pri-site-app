@@ -1,0 +1,12 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    <div class="submit-row" style="margin-top:10px;">
+        <a href="{{ reset_url }}"
+           class="button"
+           style="background:#dc3545;color:white;padding:10px 15px;text-decoration:none;border-radius:4px;float:right;">
+            ⚠️ Reset All Test Data
+        </a>
+    </div>
+{% endblock %}

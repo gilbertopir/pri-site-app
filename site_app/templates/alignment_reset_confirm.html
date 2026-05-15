@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div style="max-width:500px;">
+
+    <h2>⚠️ Reset All Data — {{ alignment.name }}</h2>
+
+    <div style="background:#fff3cd;border:1px solid #ffc107;padding:15px;border-radius:4px;margin-bottom:20px;">
+        <strong>This will permanently delete:</strong>
+        <ul style="margin:10px 0 0 20px;">
+            <li>All captured features for {{ alignment.name }}</li>
+            <li>All passing places for {{ alignment.name }}</li>
+            <li>All associated photos from disk</li>
+        </ul>
+        <p style="margin-top:10px;margin-bottom:0;">
+            Feature IDs and Passing Place IDs will reset to <strong>F001</strong> and <strong>PP001</strong>.
+        </p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div style="background:#f8d7da;border:1px solid #f5c6cb;padding:10px;border-radius:4px;margin-bottom:15px;">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        <div style="margin-bottom:15px;">
+            <label style="display:block;font-weight:bold;margin-bottom:5px;">
+                Type the alignment name to confirm:
+                <span style="color:#dc3545;">{{ alignment.name }}</span>
+            </label>
+            <input type="text" name="alignment_name"
+                   style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:1rem;"
+                   placeholder="Type: {{ alignment.name }}"
+                   autofocus>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <a href="/admin/site_app/alignment/{{ alignment.id }}/change/"
+               style="padding:10px 20px;background:#6c757d;color:white;text-decoration:none;border-radius:4px;">
+                Cancel
+            </a>
+            <button type="submit"
+                    style="padding:10px 20px;background:#dc3545;color:white;border:none;border-radius:4px;cursor:pointer;font-size:1rem;">
+                ⚠️ Delete All Data and Reset
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
