@@ -141,7 +141,7 @@ def capture(request, alignment_id):
 
         messages.success(
             request,
-            f"✅ Captured: {custom_type or feature_type} at chainage {projected['chainage']}m — {len(photos)} photo(s)"
+            f"✅ Saved F{feature.id:03d}: {custom_type or feature_type} at chainage {projected['chainage']}m — {len(photos)} photo(s)"
         )
         return redirect("capture", alignment_id=alignment_id)
 
@@ -550,7 +550,7 @@ def export_zip(request, alignment_id):
     for f in features:
         photo_names = ", ".join([Path(fp.photo.name).name for fp in f.photos.all()])
         ws1.append([
-            f.id, f.get_feature_label(), f.side, f.condition,
+            f"F{f.id:03d}", f.get_feature_label(), f.side, f.condition,
             f.offset_from_edge_m, f.distance_along_edge_m,
             f.chainage_m, f.distance_from_alignment_m,
             f.latitude, f.longitude, f.easting, f.northing,
@@ -641,6 +641,57 @@ def export_zip(request, alignment_id):
     response = HttpResponse(zip_buffer.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="{folder}.zip"'
     return response
+
+
+# -----------------------------
+# Edit feature
+# -----------------------------
+@login_required
+def edit_feature(request, feature_id):
+    feature   = get_object_or_404(FeatureCapture, id=feature_id)
+    alignment = feature.alignment
+
+    if request.method == "POST":
+        feature.feature_type          = request.POST.get("feature_type", feature.feature_type)
+        feature.custom_feature_type   = request.POST.get("custom_feature_type", "")
+        feature.side                  = request.POST.get("side", feature.side)
+        feature.condition             = request.POST.get("condition", feature.condition)
+        feature.offset_from_edge_m    = float(request.POST.get("offset_from_edge_m", 0) or 0)
+        feature.distance_along_edge_m = float(request.POST.get("distance_along_edge_m", 0) or 0)
+        feature.notes                 = request.POST.get("notes", "")
+        feature.save()
+        messages.success(request, f"✅ F{feature.id:03d} updated successfully.")
+        return redirect("view_points", alignment_id=alignment.id)
+
+    return render(request, "edit_feature.html", {
+        "feature":      feature,
+        "alignment":    alignment,
+        "feature_types": FeatureCapture.FEATURE_TYPES,
+    })
+
+
+# -----------------------------
+# Edit passing place
+# -----------------------------
+@login_required
+def edit_passing_place(request, pp_id):
+    pp        = get_object_or_404(PassingPlace, id=pp_id)
+    alignment = pp.alignment
+
+    if request.method == "POST":
+        pp.side     = request.POST.get("side", pp.side)
+        pp.status   = request.POST.get("status", pp.status)
+        pp.width_m  = float(request.POST.get("width_m", 0) or 0)
+        pp.length_m = float(request.POST.get("length_m", 0) or 0)
+        pp.notes    = request.POST.get("notes", "")
+        pp.save()
+        messages.success(request, f"✅ {pp.pp_id} updated successfully.")
+        return redirect("view_points", alignment_id=alignment.id)
+
+    return render(request, "edit_passing_place.html", {
+        "pp":        pp,
+        "alignment": alignment,
+    })
 
 
 # -----------------------------

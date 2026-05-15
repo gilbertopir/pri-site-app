@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ pp.pp_id }} — {{ alignment.name }}{% endblock %}
+
+{% block nav_view %}active{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h5><i class="bi bi-pencil me-2"></i>Edit Passing Place</h5>
+    <small>{{ alignment.name }}</small>
+</div>
+
+<!-- PP ID badge -->
+<div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-primary fs-6 px-3 py-2">
+        {{ pp.pp_id }}
+    </span>
+    <span class="text-muted small">Chainage: {{ pp.mid_chainage_m }}m</span>
+</div>
+
+<!-- Read-only info -->
+<div class="card border-0 bg-light mb-3">
+    <div class="card-body p-3">
+        <div class="small text-muted mb-1">
+            <i class="bi bi-lock me-1"></i>Location data — cannot be edited
+        </div>
+        <div class="row g-2 small">
+            <div class="col-6">Chainage: <strong>{{ pp.mid_chainage_m }}m</strong></div>
+            <div class="col-6">Easting: <strong>{{ pp.mid_easting }}</strong></div>
+            <div class="col-6">Northing: <strong>{{ pp.mid_northing }}</strong></div>
+            <div class="col-6">Latitude: <strong>{{ pp.mid_latitude }}</strong></div>
+            {% if pp.gps_accuracy_m %}
+            <div class="col-6">GPS Accuracy: <strong>±{{ pp.gps_accuracy_m|floatformat:1 }}m</strong></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Edit form -->
+<form method="POST">
+    {% csrf_token %}
+
+    <!-- Side -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Side of Road</label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-LHS" value="LHS"
+                       {% if pp.side == 'LHS' %}checked{% endif %}>
+                <label class="form-check-label" for="side-LHS">LHS — Left Hand Side</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-RHS" value="RHS"
+                       {% if pp.side == 'RHS' %}checked{% endif %}>
+                <label class="form-check-label" for="side-RHS">RHS — Right Hand Side</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Status</label>
+        <div class="d-flex gap-3">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="status"
+                       id="status-existing" value="Existing"
+                       {% if pp.status == 'Existing' %}checked{% endif %}>
+                <label class="form-check-label" for="status-existing">Existing</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="status"
+                       id="status-new" value="New"
+                       {% if pp.status == 'New' %}checked{% endif %}>
+                <label class="form-check-label" for="status-new">New</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Width and Length -->
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <label class="form-label fw-semibold">Width (m)</label>
+            <input type="number" name="width_m" class="form-control"
+                   value="{{ pp.width_m }}" min="0" step="0.1">
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-semibold">Length (m)</label>
+            <input type="number" name="length_m" class="form-control"
+                   value="{{ pp.length_m }}" min="0" step="0.1">
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Notes</label>
+        <textarea name="notes" class="form-control" rows="4">{{ pp.notes }}</textarea>
+    </div>
+
+    <!-- Photos (read only — add via View) -->
+    {% if pp.photos.all %}
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Photos</label>
+        <div class="d-flex gap-2 flex-wrap">
+            {% for pp_photo in pp.photos.all %}
+            <img src="{{ pp_photo.photo.url }}" alt="Photo"
+                 class="img-fluid rounded" style="max-height:100px;max-width:100px;object-fit:cover;">
+            {% endfor %}
+        </div>
+        <div class="small text-muted mt-1">
+            To add or remove photos use the View tab.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-2 mt-2">
+        <div class="col-6">
+            <a href="{% url 'view_points' alignment.id %}"
+               class="btn btn-outline-secondary w-100">
+                <i class="bi bi-arrow-left me-2"></i>Cancel
+            </a>
+        </div>
+        <div class="col-6">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-lg me-2"></i>Save Changes
+            </button>
+        </div>
+    </div>
+
+</form>
+
+{% endblock %}
