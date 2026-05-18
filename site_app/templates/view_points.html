@@ -48,6 +48,9 @@
                 <div class="flex-grow-1">
                     <div class="fw-bold">
                         <span class="badge bg-secondary me-1">F{{ f.id|stringformat:"03d" }}</span>
+                        {% if f.entry_method == "Manual" %}
+                        <span class="badge bg-warning text-dark me-1">Manual</span>
+                        {% endif %}
                         {{ f.get_feature_label }}
                     </div>
                     <div class="mt-1">
@@ -141,6 +144,9 @@
                         <span class="badge bg-info">Existing</span>
                         {% endif %}
                         <span class="badge bg-secondary ms-1">{{ pp.side }}</span>
+                        {% if pp.entry_method == "Manual" %}
+                        <span class="badge bg-warning text-dark ms-1">Manual</span>
+                        {% endif %}
                     </div>
                     <div class="small text-muted mt-1">
                         Ch: <strong>{{ pp.mid_chainage_m }}m</strong> &nbsp;|&nbsp;

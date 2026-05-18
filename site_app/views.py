@@ -99,19 +99,30 @@ def capture(request, alignment_id):
     feature_types = FeatureCapture.FEATURE_TYPES
 
     if request.method == "POST":
-        try:
-            lat = float(request.POST.get("latitude"))
-            lon = float(request.POST.get("longitude"))
-        except (TypeError, ValueError):
-            messages.error(request, "No GPS location captured — please get your location first.")
-            return render(request, "capture.html", {
-                "alignment":         alignment,
-                "gps_line":          json.dumps(gps_line),
-                "feature_types":     feature_types,
-                "total":             round(data["total_length"], 3),
-            })
+        entry_method = request.POST.get("entry_method", "GPS")
 
-        projected    = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
+        if entry_method == "Manual":
+            try:
+                chainage  = float(request.POST.get("manual_chainage", 0))
+                projected = chainage_to_gps(data["points"], data["cum_dist"], chainage)
+                projected["distance_from_alignment"] = 0.0
+            except (TypeError, ValueError):
+                messages.error(request, "Invalid chainage value.")
+                return redirect("capture", alignment_id=alignment_id)
+        else:
+            try:
+                lat = float(request.POST.get("latitude"))
+                lon = float(request.POST.get("longitude"))
+            except (TypeError, ValueError):
+                messages.error(request, "No GPS location captured — please get your location first.")
+                return render(request, "capture.html", {
+                    "alignment":     alignment,
+                    "gps_line":      json.dumps(gps_line),
+                    "feature_types": feature_types,
+                    "total":         round(data["total_length"], 3),
+                })
+            projected = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
+
         feature_type = request.POST.get("feature_type", "")
         custom_type  = request.POST.get("custom_feature_type", "")
         photos       = request.FILES.getlist("photos")
@@ -131,17 +142,17 @@ def capture(request, alignment_id):
             longitude             = projected["longitude"],
             easting               = projected["easting"],
             northing              = projected["northing"],
-            gps_accuracy_m        = float(request.POST.get("gps_accuracy", 0) or 0),
+            gps_accuracy_m        = float(request.POST.get("gps_accuracy", 0) or 0) if entry_method == "GPS" else None,
+            entry_method          = entry_method,
             captured_by           = request.user,
         )
 
-        # Save multiple photos
         for photo in photos:
             FeaturePhoto.objects.create(feature=feature, photo=photo)
 
         messages.success(
             request,
-            f"✅ Saved F{feature.id:03d}: {custom_type or feature_type} at chainage {projected['chainage']}m — {len(photos)} photo(s)"
+            f"✅ Saved F{feature.id:03d} [{entry_method}]: {custom_type or feature_type} at chainage {projected['chainage']}m"
         )
         return redirect("capture", alignment_id=alignment_id)
 
@@ -169,21 +180,32 @@ def passing_places(request, alignment_id):
     pp_list   = PassingPlace.objects.filter(alignment=alignment)
 
     if request.method == "POST":
-        try:
-            lat = float(request.POST.get("latitude"))
-            lon = float(request.POST.get("longitude"))
-        except (TypeError, ValueError):
-            messages.error(request, "No GPS location — please get your location first.")
-            return render(request, "passing_places.html", {
-                "alignment": alignment,
-                "gps_line":  json.dumps(gps_line),
-                "next_id":   next_id,
-                "pp_list":   pp_list,
-                "total":     round(data["total_length"], 3),
-            })
+        entry_method = request.POST.get("entry_method", "GPS")
 
-        projected = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
-        photos    = request.FILES.getlist("photos")
+        if entry_method == "Manual":
+            try:
+                chainage  = float(request.POST.get("manual_chainage", 0))
+                projected = chainage_to_gps(data["points"], data["cum_dist"], chainage)
+                projected["distance_from_alignment"] = 0.0
+            except (TypeError, ValueError):
+                messages.error(request, "Invalid chainage value.")
+                return redirect("passing_places", alignment_id=alignment_id)
+        else:
+            try:
+                lat = float(request.POST.get("latitude"))
+                lon = float(request.POST.get("longitude"))
+            except (TypeError, ValueError):
+                messages.error(request, "No GPS location — please get your location first.")
+                return render(request, "passing_places.html", {
+                    "alignment": alignment,
+                    "gps_line":  json.dumps(gps_line),
+                    "next_id":   next_id,
+                    "pp_list":   pp_list,
+                    "total":     round(data["total_length"], 3),
+                })
+            projected = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
+
+        photos = request.FILES.getlist("photos")
 
         pp = PassingPlace.objects.create(
             alignment      = alignment,
@@ -198,17 +220,17 @@ def passing_places(request, alignment_id):
             width_m        = float(request.POST.get("width_m", 0) or 0),
             length_m       = float(request.POST.get("length_m", 0) or 0),
             notes          = request.POST.get("notes", ""),
-            gps_accuracy_m = float(request.POST.get("gps_accuracy", 0) or 0),
+            gps_accuracy_m = float(request.POST.get("gps_accuracy", 0) or 0) if entry_method == "GPS" else None,
+            entry_method   = entry_method,
             captured_by    = request.user,
         )
 
-        # Save multiple photos
         for photo in photos:
             PassingPlacePhoto.objects.create(passing_place=pp, photo=photo)
 
         messages.success(
             request,
-            f"✅ Saved: {next_id} at chainage {projected['chainage']}m — {len(photos)} photo(s)"
+            f"✅ Saved {next_id} [{entry_method}]: chainage {projected['chainage']}m"
         )
         return redirect("passing_places", alignment_id=alignment_id)
 
@@ -535,7 +557,7 @@ def export_zip(request, alignment_id):
     header_font = Font(bold=True, color="FFFFFF")
 
     feature_headers = [
-        "ID", "Feature Type", "Side", "Condition",
+        "ID", "Entry Method", "Feature Type", "Side", "Condition",
         "Offset from Edge (m)", "Distance Along Edge (m)",
         "Chainage (m)", "Distance from Alignment (m)",
         "Latitude", "Longitude", "Easting", "Northing",
@@ -550,7 +572,7 @@ def export_zip(request, alignment_id):
     for f in features:
         photo_names = ", ".join([Path(fp.photo.name).name for fp in f.photos.all()])
         ws1.append([
-            f"F{f.id:03d}", f.get_feature_label(), f.side, f.condition,
+            f"F{f.id:03d}", f.entry_method, f.get_feature_label(), f.side, f.condition,
             f.offset_from_edge_m, f.distance_along_edge_m,
             f.chainage_m, f.distance_from_alignment_m,
             f.latitude, f.longitude, f.easting, f.northing,

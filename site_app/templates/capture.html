@@ -22,8 +22,20 @@
     <span id="distance-warning-text"></span>
 </div>
 
+<!-- Entry mode toggle -->
+<div class="d-flex gap-2 mb-3">
+    <button type="button" id="btn-gps-mode" onclick="setMode('GPS')"
+            class="btn btn-primary flex-fill">
+        <i class="bi bi-crosshair me-1"></i>GPS
+    </button>
+    <button type="button" id="btn-manual-mode" onclick="setMode('Manual')"
+            class="btn btn-outline-secondary flex-fill">
+        <i class="bi bi-keyboard me-1"></i>Manual
+    </button>
+</div>
+
 <!-- Location metrics -->
-<div class="row g-2 mb-3">
+<div id="gps-metrics" class="row g-2 mb-3">
     <div class="col-6">
         <div class="metric-card">
             <div class="metric-label">Chainage</div>
@@ -40,18 +52,37 @@
     </div>
 </div>
 
-<!-- Get location button -->
-<button id="get-location-btn" class="btn btn-primary w-100 mb-2" type="button">
-    <i class="bi bi-crosshair me-2"></i>Get My Location
-</button>
+<!-- GPS mode controls -->
+<div id="gps-controls">
+    <button id="get-location-btn" class="btn btn-primary w-100 mb-2" type="button">
+        <i class="bi bi-crosshair me-2"></i>Get My Location
+    </button>
+    <div id="accuracy-badge" class="d-none mb-3 text-center">
+        <span id="accuracy-pill" class="badge fs-6 px-3 py-2">
+            <i class="bi bi-broadcast me-1"></i>
+            Accuracy: <span id="accuracy-value">—</span>m
+        </span>
+        <div id="accuracy-hint" class="small mt-1"></div>
+    </div>
+</div>
 
-<!-- GPS Accuracy badge -->
-<div id="accuracy-badge" class="d-none mb-3 text-center">
-    <span id="accuracy-pill" class="badge fs-6 px-3 py-2">
-        <i class="bi bi-broadcast me-1"></i>
-        Accuracy: <span id="accuracy-value">—</span>m
-    </span>
-    <div id="accuracy-hint" class="small mt-1"></div>
+<!-- Manual mode controls -->
+<div id="manual-controls" class="d-none">
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Chainage (m)</label>
+        <input type="number" id="manual-chainage-input"
+               class="form-control form-control-lg"
+               min="0" max="{{ total }}" step="0.001"
+               inputmode="decimal"
+               placeholder="Enter chainage e.g. 1234.5">
+        <div class="small text-muted mt-1">
+            GPS coordinates calculated automatically from chainage.
+        </div>
+    </div>
+    <div class="alert alert-warning py-2 small mb-2">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Manual entry — coordinates from chainage, not measured on site.
+    </div>
 </div>
 
 <hr>
@@ -60,10 +91,12 @@
 <form method="POST" enctype="multipart/form-data" id="capture-form">
     {% csrf_token %}
 
-    <!-- Hidden GPS fields — populated by JS -->
-    <input type="hidden" name="latitude"     id="latitude-field"  value="">
-    <input type="hidden" name="longitude"    id="longitude-field" value="">
-    <input type="hidden" name="gps_accuracy" id="accuracy-field"  value="">
+    <!-- Hidden fields — populated by JS -->
+    <input type="hidden" name="latitude"      id="latitude-field"      value="">
+    <input type="hidden" name="longitude"     id="longitude-field"     value="">
+    <input type="hidden" name="gps_accuracy"  id="accuracy-field"      value="">
+    <input type="hidden" name="entry_method"  id="entry-method-field"  value="GPS">
+    <input type="hidden" name="manual_chainage" id="manual-chainage-field" value="">
 
     <!-- Feature type -->
     <div class="mb-3">
@@ -197,11 +230,33 @@
     const alignmentId        = {{ alignment.id }};
     const DISTANCE_WARNING_M = 50;
 
-    let map              = null;
-    let projMarker       = null;
-    let phoneMarker      = null;
-    let connectLine      = null;
+    let currentMode      = 'GPS';
     let locationCaptured = false;
+
+    // Mode toggle
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('entry-method-field').value = mode;
+
+        if (mode === 'GPS') {
+            document.getElementById('gps-controls').classList.remove('d-none');
+            document.getElementById('manual-controls').classList.add('d-none');
+            document.getElementById('gps-metrics').classList.remove('d-none');
+            document.getElementById('btn-gps-mode').className = 'btn btn-primary flex-fill';
+            document.getElementById('btn-manual-mode').className = 'btn btn-outline-secondary flex-fill';
+            document.getElementById('gps-status').className = 'alert alert-info py-2 mb-3';
+            document.getElementById('gps-status').innerHTML = '<i class="bi bi-broadcast me-2"></i>Tap "Get My Location" to begin';
+        } else {
+            document.getElementById('gps-controls').classList.add('d-none');
+            document.getElementById('manual-controls').classList.remove('d-none');
+            document.getElementById('gps-metrics').classList.add('d-none');
+            document.getElementById('btn-gps-mode').className = 'btn btn-outline-secondary flex-fill';
+            document.getElementById('btn-manual-mode').className = 'btn btn-primary flex-fill';
+            document.getElementById('gps-status').className = 'alert alert-warning py-2 mb-3';
+            document.getElementById('gps-status').innerHTML = '<i class="bi bi-keyboard me-2"></i>Enter chainage below to capture manually';
+            locationCaptured = true; // Allow form submit in manual mode
+        }
+    }
 
     // Get location button
     document.getElementById('get-location-btn').addEventListener('click', function () {
@@ -277,9 +332,18 @@
     document.getElementById('capture-form').addEventListener('submit', async function (e) {
         e.preventDefault();
 
-        if (!locationCaptured) {
+        if (currentMode === 'GPS' && !locationCaptured) {
             showStatus('danger', 'Please get your location first before capturing.');
             return;
+        }
+
+        if (currentMode === 'Manual') {
+            const ch = document.getElementById('manual-chainage-input').value;
+            if (!ch) {
+                showStatus('danger', 'Please enter a chainage value.');
+                return;
+            }
+            document.getElementById('manual-chainage-field').value = ch;
         }
 
         const btn = document.getElementById('save-btn');
@@ -289,19 +353,12 @@
         try {
             const formData    = new FormData(this);
             const photoInput  = document.getElementById('photo-input');
-
-            // Remove original photos from formData and replace with resized
             formData.delete('photos');
             if (photoInput.files.length > 0) {
                 const resized = await resizeFiles(photoInput.files, 3);
                 resized.forEach(f => formData.append('photos', f));
             }
-
-            const response = await fetch(window.location.href, {
-                method: 'POST',
-                body: formData,
-            });
-
+            const response = await fetch(window.location.href, { method: 'POST', body: formData });
             if (response.redirected) {
                 window.location.href = response.url;
             } else if (response.ok) {
