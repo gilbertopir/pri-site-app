@@ -525,7 +525,20 @@ def admin_export(request):
     if not request.user.is_staff:
         return redirect("dashboard")
     alignments = Alignment.objects.filter(active=True)
-    return render(request, "admin_export.html", {"alignments": alignments})
+
+    # Calculate photo counts per alignment
+    alignment_data = []
+    for a in alignments:
+        feature_photos = sum(f.photos.count() for f in a.features.all())
+        pp_photos      = sum(pp.photos.count() for pp in a.passing_places.all())
+        alignment_data.append({
+            "alignment":    a,
+            "feature_count": a.features.count(),
+            "pp_count":      a.passing_places.count(),
+            "photo_count":   feature_photos + pp_photos,
+        })
+
+    return render(request, "admin_export.html", {"alignment_data": alignment_data})
 
 
 @login_required
