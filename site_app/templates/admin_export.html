@@ -57,26 +57,46 @@
                 Features + Passing Places + Summary — instant download
             </small>
 
-            <!-- Photo volumes -->
-            {% if item.volumes %}
-                <hr>
-                <div class="small fw-semibold text-muted mb-2">
-                    <i class="bi bi-images me-1"></i>Photo Downloads — {{ item.volumes|length }} volume(s)
-                </div>
-                {% for vol in item.volumes %}
-                <a href="{% url 'export_photos_volume' item.alignment.id vol.number %}"
-                   class="btn btn-outline-primary w-100 mb-2">
-                    <i class="bi bi-file-earmark-zip me-2"></i>
-                    Photos Vol {{ vol.number }}
-                    <span class="badge bg-light text-dark ms-2">
-                        {{ vol.count }} photos / {{ vol.size_mb }}MB
-                    </span>
-                </a>
-                {% endfor %}
-            {% else %}
-                <div class="alert alert-light text-center small py-2">
-                    <i class="bi bi-images me-1"></i>No photos uploaded for this alignment.
-                </div>
+            <!-- Feature photos -->
+            {% if item.feature_volumes %}
+            <hr>
+            <div class="small fw-semibold text-muted mb-2">
+                <i class="bi bi-pin-map me-1"></i>Feature Photos — {{ item.feature_volumes|length }} volume(s)
+            </div>
+            {% for vol in item.feature_volumes %}
+            <a href="{% url 'export_photos_volume' item.alignment.id 'features' vol.number %}"
+               class="btn btn-outline-primary w-100 mb-2">
+                <i class="bi bi-file-earmark-zip me-2"></i>
+                Features Photos Vol {{ vol.number }}
+                <span class="badge bg-light text-dark ms-2">
+                    {{ vol.count }} photos / {{ vol.size_mb }}MB
+                </span>
+            </a>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Passing place photos -->
+            {% if item.pp_volumes %}
+            <hr>
+            <div class="small fw-semibold text-muted mb-2">
+                <i class="bi bi-arrow-left-right me-1"></i>Passing Place Photos — {{ item.pp_volumes|length }} volume(s)
+            </div>
+            {% for vol in item.pp_volumes %}
+            <a href="{% url 'export_photos_volume' item.alignment.id 'passing_places' vol.number %}"
+               class="btn btn-outline-success w-100 mb-2">
+                <i class="bi bi-file-earmark-zip me-2"></i>
+                Passing Places Photos Vol {{ vol.number }}
+                <span class="badge bg-light text-dark ms-2">
+                    {{ vol.count }} photos / {{ vol.size_mb }}MB
+                </span>
+            </a>
+            {% endfor %}
+            {% endif %}
+
+            {% if not item.feature_volumes and not item.pp_volumes %}
+            <div class="alert alert-light text-center small py-2 mt-2">
+                <i class="bi bi-images me-1"></i>No photos uploaded for this alignment.
+            </div>
             {% endif %}
 
         </div>

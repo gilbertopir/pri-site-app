@@ -535,55 +535,59 @@ def admin_export(request):
         feature_photos = sum(f.photos.count() for f in a.features.all())
         pp_photos      = sum(pp.photos.count() for pp in a.passing_places.all())
 
-        # Calculate photo volumes
-        all_photos = []
+        # Calculate photo volumes — features
+        feature_photo_list = []
         for f in a.features.all():
             for fp in f.photos.all():
                 try:
                     photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
                     if photo_path.exists():
-                        all_photos.append((photo_path, fp.photo.name))
+                        feature_photo_list.append(photo_path)
                 except Exception:
                     pass
+
+        # Calculate photo volumes — passing places
+        pp_photo_list = []
         for pp in a.passing_places.all():
             for pp_photo in pp.photos.all():
                 try:
                     photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
                     if photo_path.exists():
-                        all_photos.append((photo_path, pp_photo.photo.name))
+                        pp_photo_list.append(photo_path)
                 except Exception:
                     pass
 
-        # Split into volumes
-        volumes = []
-        current_vol = []
-        current_size = 0
-        for photo_path, photo_name in all_photos:
-            size = photo_path.stat().st_size
-            if current_size + size > MAX_VOLUME_BYTES and current_vol:
+        def make_volumes(photo_list):
+            volumes = []
+            current_vol  = []
+            current_size = 0
+            for p in photo_list:
+                size = p.stat().st_size
+                if current_size + size > MAX_VOLUME_BYTES and current_vol:
+                    volumes.append({
+                        "number":  len(volumes) + 1,
+                        "count":   len(current_vol),
+                        "size_mb": round(current_size / 1024 / 1024, 1)
+                    })
+                    current_vol  = []
+                    current_size = 0
+                current_vol.append(p)
+                current_size += size
+            if current_vol:
                 volumes.append({
-                    "number": len(volumes) + 1,
-                    "count":  len(current_vol),
+                    "number":  len(volumes) + 1,
+                    "count":   len(current_vol),
                     "size_mb": round(current_size / 1024 / 1024, 1)
                 })
-                current_vol   = []
-                current_size  = 0
-            current_vol.append(photo_path)
-            current_size += size
-
-        if current_vol:
-            volumes.append({
-                "number":  len(volumes) + 1,
-                "count":   len(current_vol),
-                "size_mb": round(current_size / 1024 / 1024, 1)
-            })
+            return volumes
 
         alignment_data.append({
-            "alignment":     a,
-            "feature_count": a.features.count(),
-            "pp_count":      a.passing_places.count(),
-            "photo_count":   feature_photos + pp_photos,
-            "volumes":       volumes,
+            "alignment":       a,
+            "feature_count":   a.features.count(),
+            "pp_count":        a.passing_places.count(),
+            "photo_count":     feature_photos + pp_photos,
+            "feature_volumes": make_volumes(feature_photo_list),
+            "pp_volumes":      make_volumes(pp_photo_list),
         })
 
     return render(request, "admin_export.html", {"alignment_data": alignment_data})
@@ -688,7 +692,7 @@ def export_excel_only(request, alignment_id):
 
 
 @login_required
-def export_photos_volume(request, alignment_id, volume):
+def export_photos_volume(request, alignment_id, photo_type, volume):
     if not request.user.is_staff:
         return redirect("dashboard")
 
@@ -701,24 +705,26 @@ def export_photos_volume(request, alignment_id, volume):
     alignment = get_object_or_404(Alignment, id=alignment_id)
     stem      = alignment.dxf_file.replace(".dxf", "")
 
-    # Collect all photos
+    # Collect photos based on type
     all_photos = []
-    for f in alignment.features.all():
-        for fp in f.photos.all():
-            try:
-                photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
-                if photo_path.exists():
-                    all_photos.append((photo_path, Path(fp.photo.name).name, "features"))
-            except Exception:
-                pass
-    for pp in alignment.passing_places.all():
-        for pp_photo in pp.photos.all():
-            try:
-                photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
-                if photo_path.exists():
-                    all_photos.append((photo_path, Path(pp_photo.photo.name).name, "passing_places"))
-            except Exception:
-                pass
+    if photo_type == "features":
+        for f in alignment.features.all():
+            for fp in f.photos.all():
+                try:
+                    photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
+                    if photo_path.exists():
+                        all_photos.append((photo_path, Path(fp.photo.name).name))
+                except Exception:
+                    pass
+    else:
+        for pp in alignment.passing_places.all():
+            for pp_photo in pp.photos.all():
+                try:
+                    photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
+                    if photo_path.exists():
+                        all_photos.append((photo_path, Path(pp_photo.photo.name).name))
+                except Exception:
+                    pass
 
     # Split into volumes
     volumes      = []
@@ -741,12 +747,13 @@ def export_photos_volume(request, alignment_id, volume):
         return redirect("admin_export")
 
     selected = volumes[vol_index]
-    filename  = f"{stem}_photos_vol{volume}_{datetime.now().strftime('%Y%m%d')}.zip"
+    type_label = "features" if photo_type == "features" else "passing_places"
+    filename   = f"{stem}_{type_label}_photos_vol{volume}_{datetime.now().strftime('%Y%m%d')}.zip"
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for photo_path, photo_name, subfolder in selected:
-            zf.write(photo_path, f"photos/{subfolder}/{photo_name}")
+        for photo_path, photo_name in selected:
+            zf.write(photo_path, f"photos/{type_label}/{photo_name}")
 
     buffer.seek(0)
     response = HttpResponse(buffer.getvalue(), content_type="application/zip")
