@@ -47,15 +47,38 @@
                 </div>
             </div>
 
-            <!-- Download -->
-            <a href="{% url 'export_zip' item.alignment.id %}"
-               class="btn btn-primary w-100 btn-lg">
-                <i class="bi bi-file-earmark-zip me-2"></i>
-                Download Export (ZIP)
+            <!-- Excel download -->
+            <a href="{% url 'export_excel_only' item.alignment.id %}"
+               class="btn btn-primary w-100 mb-2">
+                <i class="bi bi-file-earmark-excel me-2"></i>
+                Download Data (Excel)
             </a>
-            <small class="text-muted d-block mt-1 text-center">
-                Excel (Features + Passing Places + Summary) + Photos folder
+            <small class="text-muted d-block text-center mb-3">
+                Features + Passing Places + Summary — instant download
             </small>
+
+            <!-- Photo volumes -->
+            {% if item.volumes %}
+                <hr>
+                <div class="small fw-semibold text-muted mb-2">
+                    <i class="bi bi-images me-1"></i>Photo Downloads — {{ item.volumes|length }} volume(s)
+                </div>
+                {% for vol in item.volumes %}
+                <a href="{% url 'export_photos_volume' item.alignment.id vol.number %}"
+                   class="btn btn-outline-primary w-100 mb-2">
+                    <i class="bi bi-file-earmark-zip me-2"></i>
+                    Photos Vol {{ vol.number }}
+                    <span class="badge bg-light text-dark ms-2">
+                        {{ vol.count }} photos / {{ vol.size_mb }}MB
+                    </span>
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-light text-center small py-2">
+                    <i class="bi bi-images me-1"></i>No photos uploaded for this alignment.
+                </div>
+            {% endif %}
+
         </div>
     </div>
     {% endfor %}

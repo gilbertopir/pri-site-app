@@ -524,25 +524,234 @@ def api_add_pp_photos(request, pp_id):
 def admin_export(request):
     if not request.user.is_staff:
         return redirect("dashboard")
-    alignments = Alignment.objects.filter(active=True)
 
-    # Calculate photo counts per alignment
+    from pathlib import Path
+    MAX_VOLUME_BYTES = 100 * 1024 * 1024  # 100MB per volume
+
+    alignments = Alignment.objects.filter(active=True)
     alignment_data = []
+
     for a in alignments:
         feature_photos = sum(f.photos.count() for f in a.features.all())
         pp_photos      = sum(pp.photos.count() for pp in a.passing_places.all())
+
+        # Calculate photo volumes
+        all_photos = []
+        for f in a.features.all():
+            for fp in f.photos.all():
+                try:
+                    photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
+                    if photo_path.exists():
+                        all_photos.append((photo_path, fp.photo.name))
+                except Exception:
+                    pass
+        for pp in a.passing_places.all():
+            for pp_photo in pp.photos.all():
+                try:
+                    photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
+                    if photo_path.exists():
+                        all_photos.append((photo_path, pp_photo.photo.name))
+                except Exception:
+                    pass
+
+        # Split into volumes
+        volumes = []
+        current_vol = []
+        current_size = 0
+        for photo_path, photo_name in all_photos:
+            size = photo_path.stat().st_size
+            if current_size + size > MAX_VOLUME_BYTES and current_vol:
+                volumes.append({
+                    "number": len(volumes) + 1,
+                    "count":  len(current_vol),
+                    "size_mb": round(current_size / 1024 / 1024, 1)
+                })
+                current_vol   = []
+                current_size  = 0
+            current_vol.append(photo_path)
+            current_size += size
+
+        if current_vol:
+            volumes.append({
+                "number":  len(volumes) + 1,
+                "count":   len(current_vol),
+                "size_mb": round(current_size / 1024 / 1024, 1)
+            })
+
         alignment_data.append({
-            "alignment":    a,
+            "alignment":     a,
             "feature_count": a.features.count(),
             "pp_count":      a.passing_places.count(),
             "photo_count":   feature_photos + pp_photos,
+            "volumes":       volumes,
         })
 
     return render(request, "admin_export.html", {"alignment_data": alignment_data})
 
 
 @login_required
-def export_zip(request, alignment_id):
+def export_excel_only(request, alignment_id):
+    if not request.user.is_staff:
+        return redirect("dashboard")
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment as XLAlign
+    from io import BytesIO
+    from pathlib import Path
+
+    alignment = get_object_or_404(Alignment, id=alignment_id)
+    features  = FeatureCapture.objects.filter(alignment=alignment)
+    pp_list   = PassingPlace.objects.filter(alignment=alignment)
+    stem      = alignment.dxf_file.replace(".dxf", "")
+
+    wb  = openpyxl.Workbook()
+    ws1 = wb.active
+    ws1.title = "Features"
+    header_fill = PatternFill("solid", fgColor="0d6efd")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    feature_headers = [
+        "ID", "Entry Method", "Feature Type", "Side", "Condition",
+        "Offset from Edge (m)", "Distance Along Edge (m)",
+        "Chainage (m)", "Distance from Alignment (m)",
+        "Latitude", "Longitude", "Easting", "Northing",
+        "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
+    ]
+    for col, header in enumerate(feature_headers, 1):
+        cell = ws1.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = XLAlign(horizontal="center")
+
+    for f in features:
+        photo_names = ", ".join([Path(fp.photo.name).name for fp in f.photos.all()])
+        ws1.append([
+            f"F{f.id:03d}", f.entry_method, f.get_feature_label(), f.side, f.condition,
+            f.offset_from_edge_m, f.distance_along_edge_m,
+            f.chainage_m, f.distance_from_alignment_m,
+            f.latitude, f.longitude, f.easting, f.northing,
+            f.gps_accuracy_m, photo_names, f.notes,
+            f.captured_by.username if f.captured_by else "",
+            f.captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+
+    for col in ws1.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws1.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    ws2 = wb.create_sheet("Passing Places")
+    pp_headers = [
+        "ID", "Entry Method", "PP ID", "Side", "Status",
+        "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
+        "Mid Easting", "Mid Northing", "Width (m)", "Length (m)",
+        "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
+    ]
+    for col, header in enumerate(pp_headers, 1):
+        cell = ws2.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = XLAlign(horizontal="center")
+
+    for pp in pp_list:
+        photo_names = ", ".join([Path(pp_photo.photo.name).name for pp_photo in pp.photos.all()])
+        ws2.append([
+            pp.id, pp.entry_method, pp.pp_id, pp.side, pp.status,
+            pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
+            pp.mid_easting, pp.mid_northing,
+            pp.width_m, pp.length_m,
+            pp.gps_accuracy_m, photo_names, pp.notes,
+            pp.captured_by.username if pp.captured_by else "",
+            pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+
+    for col in ws2.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws2.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    ws3 = wb.create_sheet("Summary")
+    ws3.append(["Alignment",            stem])
+    ws3.append(["Total Features",       features.count()])
+    ws3.append(["Total Passing Places", pp_list.count()])
+    ws3.append(["Export Date",          datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+
+    filename = f"{stem}_data_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    buffer   = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def export_photos_volume(request, alignment_id, volume):
+    if not request.user.is_staff:
+        return redirect("dashboard")
+
+    import zipfile
+    from io import BytesIO
+    from pathlib import Path
+
+    MAX_VOLUME_BYTES = 100 * 1024 * 1024  # 100MB
+
+    alignment = get_object_or_404(Alignment, id=alignment_id)
+    stem      = alignment.dxf_file.replace(".dxf", "")
+
+    # Collect all photos
+    all_photos = []
+    for f in alignment.features.all():
+        for fp in f.photos.all():
+            try:
+                photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
+                if photo_path.exists():
+                    all_photos.append((photo_path, Path(fp.photo.name).name, "features"))
+            except Exception:
+                pass
+    for pp in alignment.passing_places.all():
+        for pp_photo in pp.photos.all():
+            try:
+                photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
+                if photo_path.exists():
+                    all_photos.append((photo_path, Path(pp_photo.photo.name).name, "passing_places"))
+            except Exception:
+                pass
+
+    # Split into volumes
+    volumes      = []
+    current_vol  = []
+    current_size = 0
+    for item in all_photos:
+        size = item[0].stat().st_size
+        if current_size + size > MAX_VOLUME_BYTES and current_vol:
+            volumes.append(current_vol)
+            current_vol  = []
+            current_size = 0
+        current_vol.append(item)
+        current_size += size
+    if current_vol:
+        volumes.append(current_vol)
+
+    vol_index = volume - 1
+    if vol_index < 0 or vol_index >= len(volumes):
+        messages.error(request, "Volume not found.")
+        return redirect("admin_export")
+
+    selected = volumes[vol_index]
+    filename  = f"{stem}_photos_vol{volume}_{datetime.now().strftime('%Y%m%d')}.zip"
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for photo_path, photo_name, subfolder in selected:
+            zf.write(photo_path, f"photos/{subfolder}/{photo_name}")
+
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
     if not request.user.is_staff:
         return redirect("dashboard")
 

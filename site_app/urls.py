@@ -71,6 +71,8 @@ urlpatterns = [
     # -----------------------------
     # Admin export page
     # -----------------------------
-    path("admin-export/",                          views.admin_export, name="admin_export"),
-    path("admin-export/zip/<int:alignment_id>/",   views.export_zip,   name="export_zip"),
+    path("admin-export/",                                views.admin_export,         name="admin_export"),
+    path("admin-export/excel/<int:alignment_id>/",       views.export_excel_only,    name="export_excel_only"),
+    path("admin-export/photos/<int:alignment_id>/<int:volume>/", views.export_photos_volume, name="export_photos_volume"),
+    path("admin-export/zip/<int:alignment_id>/",         views.export_zip,           name="export_zip"),
 ]
