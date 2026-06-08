@@ -416,6 +416,9 @@
             })
         }).bindPopup(m.label).addTo(map);
     });
+
+    // PP markers — red
+    ppMarkers.forEach(m => {
         L.marker([m.lat, m.lon], {
             icon: L.divIcon({
                 className: '',
