@@ -421,6 +421,31 @@ def api_add_structure_photos(request, structure_id):
 
 
 # -----------------------------
+# View points
+# -----------------------------
+@login_required
+def view_points(request, alignment_id):
+    alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
+    data      = get_alignment_data(alignment)
+    if data is None:
+        messages.error(request, f"Could not load DXF file: {alignment.dxf_file}")
+        return redirect("dashboard")
+
+    gps_line       = get_alignment_gps_line(data["points"])
+    features       = FeatureCapture.objects.filter(alignment=alignment)
+    pp_list        = PassingPlace.objects.filter(alignment=alignment)
+    structure_list = Structure.objects.filter(alignment=alignment)
+
+    return render(request, "view_points.html", {
+        "alignment":      alignment,
+        "gps_line":       json.dumps(gps_line),
+        "features":       features,
+        "pp_list":        pp_list,
+        "structure_list": structure_list,
+    })
+
+
+# -----------------------------
 # Tools — Chainage ↔ GPS
 # -----------------------------
 @login_required
