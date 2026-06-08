@@ -205,7 +205,90 @@
     </div>
 {% endif %}
 
-<!-- Delete confirmation modal -->
+<!-- ==============================
+     Structures
+     ============================== -->
+<div class="section-header mt-4 mb-3">
+    <i class="bi bi-building me-2 text-success"></i>Structures
+    <span class="badge bg-secondary ms-1">{{ structure_list|length }}</span>
+</div>
+
+{% if structure_list %}
+    {% for s in structure_list %}
+    <div class="card border-0 shadow-sm mb-2">
+        <div class="card-body p-2">
+            <div class="d-flex align-items-start">
+                <div class="flex-grow-1">
+                    <div class="fw-bold">
+                        <span class="badge bg-success me-1">{{ s.structure_id }}</span>
+                        {% if s.entry_method == "Manual" %}
+                        <span class="badge bg-warning text-dark me-1">Manual</span>
+                        {% endif %}
+                        {{ s.get_feature_label }}
+                    </div>
+                    {% if s.structure_name %}
+                    <div class="small text-muted">{{ s.structure_name }}</div>
+                    {% endif %}
+                    <div class="small text-muted">
+                        Ch: {{ s.chainage_m }}m &nbsp;|&nbsp;
+                        {{ s.side }} &nbsp;|&nbsp;
+                        <span class="badge
+                            {% if s.condition == 'GOOD' %}bg-success
+                            {% elif s.condition == 'FAIR' %}bg-warning text-dark
+                            {% else %}bg-danger{% endif %} small">
+                            {{ s.condition }}
+                        </span>
+                        &nbsp;|&nbsp; {{ s.recommended_action }}
+                    </div>
+                    {% if s.material %}
+                    <div class="small text-muted">
+                        Material: {{ s.custom_material|default:s.material }}
+                        {% if s.num_spans %} | Spans: {{ s.num_spans }}{% endif %}
+                    </div>
+                    {% endif %}
+                    {% if s.notes %}
+                    <div class="small text-muted fst-italic mt-1">{{ s.notes }}</div>
+                    {% endif %}
+                    {% if s.photos.all %}
+                    <div class="mt-2 d-flex gap-2 flex-wrap">
+                        {% for sp in s.photos.all %}
+                        <img src="{{ sp.photo.url }}" alt="Photo"
+                             class="img-fluid rounded"
+                             style="max-height:120px;max-width:120px;object-fit:cover;">
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="small text-muted mt-1">
+                        {{ s.captured_by }} — {{ s.captured_at|date:"d/m/Y H:i" }}
+                    </div>
+                </div>
+                <div class="ms-2 d-flex flex-column gap-1">
+                    <a href="geo:{{ s.latitude }},{{ s.longitude }}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-map"></i>
+                    </a>
+                    <a href="{% url 'edit_structure' s.id %}"
+                       class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button class="btn btn-outline-success btn-sm"
+                            onclick="openAddPhotos('structure', {{ s.id }})">
+                        <i class="bi bi-camera"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm"
+                            onclick="confirmDelete('{% url 'delete_structure' s.id %}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-light text-center">
+        <i class="bi bi-inbox me-2"></i>No structures recorded yet.
+    </div>
+{% endif %}
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -313,8 +396,26 @@
         }).bindPopup(m.label).addTo(map);
     });
 
-    // PP markers — red
-    ppMarkers.forEach(m => {
+    const structureMarkers = [
+        {% for s in structure_list %}
+        {
+            lat:   {{ s.latitude }},
+            lon:   {{ s.longitude }},
+            label: "{{ s.structure_id }} — {{ s.get_feature_label }} | Ch: {{ s.chainage_m }}m",
+        },
+        {% endfor %}
+    ];
+
+    // Structure markers — green
+    structureMarkers.forEach(m => {
+        L.marker([m.lat, m.lon], {
+            icon: L.divIcon({
+                className: '',
+                html: '<div style="background:#198754;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 4px rgba(0,0,0,0.4)"></div>',
+                iconAnchor: [6, 6]
+            })
+        }).bindPopup(m.label).addTo(map);
+    });
         L.marker([m.lat, m.lon], {
             icon: L.divIcon({
                 className: '',
@@ -384,6 +485,8 @@
             formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
             const url = addPhotoType === 'feature'
                 ? '/api/add-feature-photos/' + addPhotoId + '/'
+                : addPhotoType === 'structure'
+                ? '/api/add-structure-photos/' + addPhotoId + '/'
                 : '/api/add-pp-photos/' + addPhotoId + '/';
             const response = await fetch(url, { method: 'POST', body: formData });
             const data     = await response.json();

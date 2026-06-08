@@ -3,7 +3,7 @@ from django.urls import path
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import connection
-from .models import UserProfile, Alignment, FeatureCapture, PassingPlace, FeaturePhoto, PassingPlacePhoto
+from .models import UserProfile, Alignment, FeatureCapture, PassingPlace, FeaturePhoto, PassingPlacePhoto, Structure, StructurePhoto
 
 
 @admin.register(UserProfile)
@@ -56,14 +56,20 @@ class AlignmentAdmin(admin.ModelAdmin):
                 for pp_photo in pp.photos.all():
                     pp_photo.delete()
 
+            for s in Structure.objects.filter(alignment=alignment):
+                for sp in s.photos.all():
+                    sp.delete()
+
             # Delete all records
             FeatureCapture.objects.filter(alignment=alignment).delete()
             PassingPlace.objects.filter(alignment=alignment).delete()
+            Structure.objects.filter(alignment=alignment).delete()
 
             # Reset auto-increment counters
             with connection.cursor() as cursor:
                 cursor.execute("DELETE FROM sqlite_sequence WHERE name='site_app_featurecapture'")
                 cursor.execute("DELETE FROM sqlite_sequence WHERE name='site_app_passingplace'")
+                cursor.execute("DELETE FROM sqlite_sequence WHERE name='site_app_structure'")
 
             messages.success(request, f'✅ All data for {alignment.name} has been reset. IDs will restart from F001 / PP001.')
             return redirect('/admin/site_app/alignment/')
@@ -110,3 +116,22 @@ class FeaturePhotoAdmin(admin.ModelAdmin):
 @admin.register(PassingPlacePhoto)
 class PassingPlacePhotoAdmin(admin.ModelAdmin):
     list_display = ["passing_place", "uploaded_at"]
+
+
+class StructurePhotoInline(admin.TabularInline):
+    model = StructurePhoto
+    extra = 0
+
+
+@admin.register(Structure)
+class StructureAdmin(admin.ModelAdmin):
+    list_display    = ["structure_id", "structure_name", "feature_type", "alignment", "chainage_m", "condition", "captured_by", "captured_at"]
+    list_filter     = ["alignment", "feature_type", "condition", "material"]
+    search_fields   = ["structure_name", "notes", "custom_feature_type"]
+    readonly_fields = ["captured_at"]
+    inlines         = [StructurePhotoInline]
+
+
+@admin.register(StructurePhoto)
+class StructurePhotoAdmin(admin.ModelAdmin):
+    list_display = ["structure", "uploaded_at"]

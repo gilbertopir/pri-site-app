@@ -261,7 +261,20 @@ def get_next_feature_id(alignment):
     return f"{prefix}-F{next_num:03d}"
 
 
-def get_next_pp_id(alignment):
+def get_next_structure_id(alignment):
+    """Generate next structure ID for alignment e.g. 304-S001."""
+    from .models import Structure
+    prefix   = get_alignment_prefix(alignment)
+    existing = Structure.objects.filter(alignment=alignment).values_list("structure_id", flat=True)
+    nums = []
+    for sid in existing:
+        if sid:
+            try:
+                nums.append(int(sid.split("-S")[-1]))
+            except (ValueError, IndexError):
+                pass
+    next_num = max(nums) + 1 if nums else 1
+    return f"{prefix}-S{next_num:03d}"
     """Generate next PP ID for alignment e.g. 304-PP001."""
     from .models import PassingPlace
     prefix   = get_alignment_prefix(alignment)

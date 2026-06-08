@@ -10,7 +10,7 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.conf import settings
 
-from .models import Alignment, FeatureCapture, PassingPlace, FeaturePhoto, PassingPlacePhoto
+from .models import Alignment, FeatureCapture, PassingPlace, FeaturePhoto, PassingPlacePhoto, Structure, StructurePhoto
 from .utils import (
     load_alignment_from_dxf,
     get_available_dxf_files,
@@ -19,6 +19,7 @@ from .utils import (
     get_alignment_gps_line,
     get_next_pp_id,
     get_next_feature_id,
+    get_next_structure_id,
 )
 
 
@@ -250,22 +251,172 @@ def passing_places(request, alignment_id):
 # View captured points
 # -----------------------------
 @login_required
-def view_points(request, alignment_id):
+def structures(request, alignment_id):
     alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
     data      = get_alignment_data(alignment)
     if data is None:
         messages.error(request, f"Could not load DXF file: {alignment.dxf_file}")
         return redirect("dashboard")
 
-    gps_line = get_alignment_gps_line(data["points"])
-    features = FeatureCapture.objects.filter(alignment=alignment)
-    pp_list  = PassingPlace.objects.filter(alignment=alignment)
+    gps_line     = get_alignment_gps_line(data["points"])
+    next_id      = get_next_structure_id(alignment)
+    structure_list = Structure.objects.filter(alignment=alignment)
+
+    if request.method == "POST":
+        entry_method = request.POST.get("entry_method", "GPS")
+        structure_id = get_next_structure_id(alignment)
+
+        if entry_method == "Manual":
+            try:
+                chainage  = float(request.POST.get("manual_chainage", 0))
+                projected = chainage_to_gps(data["points"], data["cum_dist"], chainage)
+                projected["distance_from_alignment"] = 0.0
+            except (TypeError, ValueError):
+                messages.error(request, "Invalid chainage value.")
+                return redirect("structures", alignment_id=alignment_id)
+        else:
+            try:
+                lat = float(request.POST.get("latitude"))
+                lon = float(request.POST.get("longitude"))
+            except (TypeError, ValueError):
+                messages.error(request, "No GPS location — please get your location first.")
+                return render(request, "structures.html", {
+                    "alignment":    alignment,
+                    "gps_line":     json.dumps(gps_line),
+                    "next_id":      next_id,
+                    "structure_list": structure_list,
+                    "total":        round(data["total_length"], 3),
+                })
+            projected = gps_to_projected(data["points"], data["cum_dist"], lat, lon)
+
+        photos = request.FILES.getlist("photos")
+
+        s = Structure.objects.create(
+            alignment           = alignment,
+            structure_id        = structure_id,
+            structure_name      = request.POST.get("structure_name", ""),
+            feature_type        = request.POST.get("feature_type", ""),
+            custom_feature_type = request.POST.get("custom_feature_type", ""),
+            num_spans           = int(request.POST.get("num_spans", 1) or 1),
+            span_length_m       = float(request.POST.get("span_length_m", 0) or 0),
+            vehicle_clearance_m = float(request.POST.get("vehicle_clearance_m", 0) or 0),
+            parapet_height_m    = float(request.POST.get("parapet_height_m", 0) or 0),
+            parapet_width_m     = float(request.POST.get("parapet_width_m", 0) or 0),
+            footpath_width_m    = float(request.POST.get("footpath_width_m", 0) or 0),
+            material            = request.POST.get("material", "Concrete"),
+            custom_material     = request.POST.get("custom_material", ""),
+            side                = request.POST.get("side", "LHS"),
+            condition           = request.POST.get("condition", "GOOD"),
+            offset_from_edge_m  = float(request.POST.get("offset_from_edge_m", 0) or 0),
+            distance_along_edge_m = float(request.POST.get("distance_along_edge_m", 0) or 0),
+            recommended_action  = request.POST.get("recommended_action", "No Action"),
+            notes               = request.POST.get("notes", ""),
+            chainage_m          = projected["chainage"],
+            distance_from_alignment_m = projected["distance_from_alignment"],
+            latitude            = projected["latitude"],
+            longitude           = projected["longitude"],
+            easting             = projected["easting"],
+            northing            = projected["northing"],
+            gps_accuracy_m      = float(request.POST.get("gps_accuracy", 0) or 0) if entry_method == "GPS" else None,
+            entry_method        = entry_method,
+            captured_by         = request.user,
+        )
+
+        for photo in photos:
+            StructurePhoto.objects.create(structure=s, photo=photo)
+
+        messages.success(
+            request,
+            f"✅ Saved {s.structure_id} [{entry_method}]: {s.get_feature_label()} at chainage {projected['chainage']}m"
+        )
+        return redirect("structures", alignment_id=alignment_id)
+
+    return render(request, "structures.html", {
+        "alignment":      alignment,
+        "gps_line":       json.dumps(gps_line),
+        "next_id":        next_id,
+        "structure_list": structure_list,
+        "total":          round(data["total_length"], 3),
+    })
+
+
+@login_required
+def delete_structure(request, structure_id):
+    s = get_object_or_404(Structure, id=structure_id)
+    alignment_id = s.alignment.id
+    for photo in s.photos.all():
+        photo.delete()
+    s.delete()
+    messages.success(request, "Structure deleted.")
+    return redirect("view_points", alignment_id=alignment_id)
+
+
+@login_required
+def edit_structure(request, structure_id):
+    s         = get_object_or_404(Structure, id=structure_id)
+    alignment = s.alignment
+
+    if request.method == "POST":
+        s.structure_name      = request.POST.get("structure_name", s.structure_name)
+        s.feature_type        = request.POST.get("feature_type", s.feature_type)
+        s.custom_feature_type = request.POST.get("custom_feature_type", "")
+        s.num_spans           = int(request.POST.get("num_spans", 1) or 1)
+        s.span_length_m       = float(request.POST.get("span_length_m", 0) or 0)
+        s.vehicle_clearance_m = float(request.POST.get("vehicle_clearance_m", 0) or 0)
+        s.parapet_height_m    = float(request.POST.get("parapet_height_m", 0) or 0)
+        s.parapet_width_m     = float(request.POST.get("parapet_width_m", 0) or 0)
+        s.footpath_width_m    = float(request.POST.get("footpath_width_m", 0) or 0)
+        s.material            = request.POST.get("material", s.material)
+        s.custom_material     = request.POST.get("custom_material", "")
+        s.side                = request.POST.get("side", s.side)
+        s.condition           = request.POST.get("condition", s.condition)
+        s.offset_from_edge_m  = float(request.POST.get("offset_from_edge_m", 0) or 0)
+        s.distance_along_edge_m = float(request.POST.get("distance_along_edge_m", 0) or 0)
+        s.recommended_action  = request.POST.get("recommended_action", s.recommended_action)
+        s.notes               = request.POST.get("notes", "")
+        s.save()
+        messages.success(request, f"✅ {s.structure_id} updated successfully.")
+        return redirect("view_points", alignment_id=alignment.id)
+
+    return render(request, "edit_structure.html", {
+        "s":         s,
+        "alignment": alignment,
+    })
+
+
+@login_required
+def api_add_structure_photos(request, structure_id):
+    s      = get_object_or_404(Structure, id=structure_id)
+    photos = request.FILES.getlist("photos")
+    if not photos:
+        return JsonResponse({"error": "No photos received"}, status=400)
+    saved = []
+    for photo in photos:
+        sp = StructurePhoto.objects.create(structure=s, photo=photo)
+        saved.append(sp.photo.url)
+    return JsonResponse({"success": True, "urls": saved, "count": len(saved)})
+
+
+# -----------------------------
+# View points
+# -----------------------------
+    alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
+    data      = get_alignment_data(alignment)
+    if data is None:
+        messages.error(request, f"Could not load DXF file: {alignment.dxf_file}")
+        return redirect("dashboard")
+
+    gps_line       = get_alignment_gps_line(data["points"])
+    features       = FeatureCapture.objects.filter(alignment=alignment)
+    pp_list        = PassingPlace.objects.filter(alignment=alignment)
+    structure_list = Structure.objects.filter(alignment=alignment)
 
     return render(request, "view_points.html", {
-        "alignment": alignment,
-        "gps_line":  json.dumps(gps_line),
-        "features":  features,
-        "pp_list":   pp_list,
+        "alignment":      alignment,
+        "gps_line":       json.dumps(gps_line),
+        "features":       features,
+        "pp_list":        pp_list,
+        "structure_list": structure_list,
     })
 
 
@@ -538,6 +689,7 @@ def admin_export(request):
     for a in alignments:
         feature_photos = sum(f.photos.count() for f in a.features.all())
         pp_photos      = sum(pp.photos.count() for pp in a.passing_places.all())
+        str_photos     = sum(s.photos.count() for s in a.structures.all())
 
         # Calculate photo volumes — features
         feature_photo_list = []
@@ -558,6 +710,17 @@ def admin_export(request):
                     photo_path = Path(settings.MEDIA_ROOT) / pp_photo.photo.name
                     if photo_path.exists():
                         pp_photo_list.append(photo_path)
+                except Exception:
+                    pass
+
+        # Calculate photo volumes — structures
+        str_photo_list = []
+        for s in a.structures.all():
+            for sp in s.photos.all():
+                try:
+                    photo_path = Path(settings.MEDIA_ROOT) / sp.photo.name
+                    if photo_path.exists():
+                        str_photo_list.append(photo_path)
                 except Exception:
                     pass
 
@@ -589,9 +752,11 @@ def admin_export(request):
             "alignment":       a,
             "feature_count":   a.features.count(),
             "pp_count":        a.passing_places.count(),
-            "photo_count":     feature_photos + pp_photos,
+            "structure_count": a.structures.count(),
+            "photo_count":     feature_photos + pp_photos + str_photos,
             "feature_volumes": make_volumes(feature_photo_list),
             "pp_volumes":      make_volumes(pp_photo_list),
+            "str_volumes":     make_volumes(str_photo_list),
         })
 
     return render(request, "admin_export.html", {"alignment_data": alignment_data})
@@ -676,10 +841,51 @@ def export_excel_only(request, alignment_id):
         max_len = max(len(str(cell.value or "")) for cell in col)
         ws2.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
 
+    # Structures sheet
+    str_list = Structure.objects.filter(alignment=alignment)
+    ws4 = wb.create_sheet("Structures")
+    str_headers = [
+        "ID", "Entry Method", "Structure Name", "Feature Type",
+        "No. Spans", "Span Length (m)", "Vehicle Clearance (m)",
+        "Parapet Height (m)", "Parapet Width (m)", "Footpath Width (m)",
+        "Material", "Side", "Condition",
+        "Offset from Edge (m)", "Distance Along Edge (m)",
+        "Recommended Action", "Chainage (m)", "Distance from Alignment (m)",
+        "Latitude", "Longitude", "Easting", "Northing",
+        "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
+    ]
+    for col, header in enumerate(str_headers, 1):
+        cell = ws4.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = XLAlign(horizontal="center")
+
+    for s in str_list:
+        photo_names = ", ".join([Path(sp.photo.name).name for sp in s.photos.all()])
+        mat   = s.custom_material   if s.material     == "Other" and s.custom_material   else s.material
+        ftype = s.custom_feature_type if s.feature_type == "Other" and s.custom_feature_type else s.feature_type
+        ws4.append([
+            s.structure_id, s.entry_method, s.structure_name, ftype,
+            s.num_spans, s.span_length_m, s.vehicle_clearance_m,
+            s.parapet_height_m, s.parapet_width_m, s.footpath_width_m,
+            mat, s.side, s.condition,
+            s.offset_from_edge_m, s.distance_along_edge_m,
+            s.recommended_action, s.chainage_m, s.distance_from_alignment_m,
+            s.latitude, s.longitude, s.easting, s.northing,
+            s.gps_accuracy_m, photo_names, s.notes,
+            s.captured_by.username if s.captured_by else "",
+            s.captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        ])
+
+    for col in ws4.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws4.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
     ws3 = wb.create_sheet("Summary")
     ws3.append(["Alignment",            stem])
     ws3.append(["Total Features",       features.count()])
     ws3.append(["Total Passing Places", pp_list.count()])
+    ws3.append(["Total Structures",     str_list.count()])
     ws3.append(["Export Date",          datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
     filename = f"{stem}_data_{datetime.now().strftime('%Y%m%d')}.xlsx"
@@ -718,6 +924,15 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
                     photo_path = Path(settings.MEDIA_ROOT) / fp.photo.name
                     if photo_path.exists():
                         all_photos.append((photo_path, Path(fp.photo.name).name))
+                except Exception:
+                    pass
+    elif photo_type == "structures":
+        for s in alignment.structures.all():
+            for sp in s.photos.all():
+                try:
+                    photo_path = Path(settings.MEDIA_ROOT) / sp.photo.name
+                    if photo_path.exists():
+                        all_photos.append((photo_path, Path(sp.photo.name).name))
                 except Exception:
                     pass
     else:

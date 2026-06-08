@@ -27,19 +27,25 @@
 
             <!-- Stats -->
             <div class="row g-2 mb-3 text-center">
-                <div class="col-4">
+                <div class="col-3">
                     <div class="metric-card">
                         <div class="metric-label">Features</div>
                         <div class="metric-value fs-4">{{ item.feature_count }}</div>
                     </div>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
                     <div class="metric-card">
                         <div class="metric-label">Passing Places</div>
                         <div class="metric-value fs-4">{{ item.pp_count }}</div>
                     </div>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
+                    <div class="metric-card">
+                        <div class="metric-label">Structures</div>
+                        <div class="metric-value fs-4">{{ item.structure_count }}</div>
+                    </div>
+                </div>
+                <div class="col-3">
                     <div class="metric-card">
                         <div class="metric-label">Photos</div>
                         <div class="metric-value fs-4">{{ item.photo_count }}</div>
@@ -93,10 +99,28 @@
             {% endfor %}
             {% endif %}
 
-            {% if not item.feature_volumes and not item.pp_volumes %}
+            {% if not item.feature_volumes and not item.pp_volumes and not item.str_volumes %}
             <div class="alert alert-light text-center small py-2 mt-2">
                 <i class="bi bi-images me-1"></i>No photos uploaded for this alignment.
             </div>
+            {% endif %}
+
+            <!-- Structure photos -->
+            {% if item.str_volumes %}
+            <hr>
+            <div class="small fw-semibold text-muted mb-2">
+                <i class="bi bi-building me-1"></i>Structure Photos — {{ item.str_volumes|length }} volume(s)
+            </div>
+            {% for vol in item.str_volumes %}
+            <a href="{% url 'export_photos_volume' item.alignment.id 'structures' vol.number %}"
+               class="btn btn-outline-success w-100 mb-2">
+                <i class="bi bi-file-earmark-zip me-2"></i>
+                Structure Photos Vol {{ vol.number }}
+                <span class="badge bg-light text-dark ms-2">
+                    {{ vol.count }} photos / {{ vol.size_mb }}MB
+                </span>
+            </a>
+            {% endfor %}
             {% endif %}
 
         </div>

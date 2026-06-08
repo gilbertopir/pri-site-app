@@ -206,3 +206,119 @@ class PassingPlacePhoto(models.Model):
 
     def __str__(self):
         return f"Photo for {self.passing_place} — {self.uploaded_at}"
+
+
+# -----------------------------
+# Structure
+# -----------------------------
+class Structure(models.Model):
+
+    FEATURE_TYPES = [
+        ("Arch Bridge",         "Arch Bridge"),
+        ("Gabions",             "Gabions"),
+        ("Multi-Cell Structure","Multi-Cell Structure"),
+        ("Roadside Structure",  "Roadside Structure"),
+        ("Bridge",              "Bridge"),
+        ("Arch",                "Arch"),
+        ("Abutment",            "Abutment"),
+        ("Approaches",          "Approaches"),
+        ("Beam",                "Beam"),
+        ("Cill-Unit",           "Cill-Unit"),
+        ("Column / Pier",       "Column / Pier"),
+        ("Culvert",             "Culvert"),
+        ("Cutting",             "Cutting"),
+        ("Embankment",          "Embankment"),
+        ("Headwall",            "Headwall"),
+        ("Retaining Wall",      "Retaining Wall"),
+        ("Watercourse",         "Watercourse"),
+        ("Wingwall",            "Wingwall"),
+        ("Other",               "Other"),
+    ]
+
+    MATERIAL_CHOICES = [
+        ("Concrete", "Concrete"),
+        ("Masonry",  "Masonry"),
+        ("Steel",    "Steel"),
+        ("Timber",   "Timber"),
+        ("Other",    "Other"),
+    ]
+
+    SIDE_CHOICES = [
+        ("LHS", "Left Hand Side"),
+        ("RHS", "Right Hand Side"),
+        ("N/A", "Not Applicable"),
+    ]
+
+    CONDITION_CHOICES = [
+        ("GOOD", "Good"),
+        ("FAIR", "Fair"),
+        ("POOR", "Poor"),
+    ]
+
+    ACTION_CHOICES = [
+        ("No Action", "No Action"),
+        ("Monitor",   "Monitor"),
+        ("Protect",   "Protect"),
+        ("Modify",    "Modify"),
+        ("Replace",   "Replace"),
+    ]
+
+    alignment           = models.ForeignKey(Alignment, on_delete=models.CASCADE, related_name="structures")
+    structure_id        = models.CharField(max_length=20, blank=True, default="")
+    structure_name      = models.CharField(max_length=200, blank=True)
+    feature_type        = models.CharField(max_length=50, choices=FEATURE_TYPES)
+    custom_feature_type = models.CharField(max_length=100, blank=True)
+    num_spans           = models.IntegerField(default=1)
+    span_length_m       = models.FloatField(default=0.0)
+    vehicle_clearance_m = models.FloatField(default=0.0)
+    parapet_height_m    = models.FloatField(default=0.0)
+    parapet_width_m     = models.FloatField(default=0.0)
+    footpath_width_m    = models.FloatField(default=0.0)
+    material            = models.CharField(max_length=20, choices=MATERIAL_CHOICES)
+    custom_material     = models.CharField(max_length=100, blank=True)
+    side                = models.CharField(max_length=10, choices=SIDE_CHOICES)
+    condition           = models.CharField(max_length=10, choices=CONDITION_CHOICES)
+    offset_from_edge_m  = models.FloatField(default=0.0)
+    distance_along_edge_m = models.FloatField(default=0.0)
+    recommended_action  = models.CharField(max_length=20, choices=ACTION_CHOICES, default="No Action")
+    notes               = models.TextField(blank=True)
+    chainage_m          = models.FloatField()
+    distance_from_alignment_m = models.FloatField()
+    latitude            = models.FloatField()
+    longitude           = models.FloatField()
+    easting             = models.FloatField()
+    northing            = models.FloatField()
+    gps_accuracy_m      = models.FloatField(null=True, blank=True)
+    entry_method        = models.CharField(max_length=10, default="GPS",
+                             choices=[("GPS", "GPS Capture"), ("Manual", "Manual Entry")])
+    captured_by         = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="structures")
+    captured_at         = models.DateTimeField(auto_now_add=True)
+
+    def get_feature_label(self):
+        if self.feature_type == "Other" and self.custom_feature_type:
+            return self.custom_feature_type
+        return self.feature_type
+
+    def __str__(self):
+        return f"{self.structure_id} — {self.get_feature_label()} — Ch: {self.chainage_m}m"
+
+    class Meta:
+        ordering = ["chainage_m"]
+
+
+# -----------------------------
+# Structure Photos
+# -----------------------------
+class StructurePhoto(models.Model):
+    structure   = models.ForeignKey(Structure, on_delete=models.CASCADE, related_name="photos")
+    photo       = models.ImageField(upload_to="photos/structures/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def delete(self, *args, **kwargs):
+        import os
+        if self.photo and os.path.isfile(self.photo.path):
+            os.remove(self.photo.path)
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"Photo for {self.structure} — {self.uploaded_at}"

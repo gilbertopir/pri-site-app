@@ -56,6 +56,11 @@ urlpatterns = [
     # -----------------------------
     path("export/features/<int:alignment_id>/",       views.export_features_csv,      name="export_features_csv"),
     path("export/passing-places/<int:alignment_id>/", views.export_passing_places_csv, name="export_passing_places_csv"),
+    path("structures/<int:alignment_id>/",              views.structures,              name="structures"),
+    path("edit/structure/<int:structure_id>/",          views.edit_structure,          name="edit_structure"),
+    path("delete/structure/<int:structure_id>/",        views.delete_structure,        name="delete_structure"),
+    path("api/add-structure-photos/<int:structure_id>/", views.api_add_structure_photos, name="api_add_structure_photos"),
+
     # -----------------------------
     # Edit records
     # -----------------------------
