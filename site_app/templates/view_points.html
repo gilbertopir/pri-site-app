@@ -361,7 +361,7 @@
             lon:   {{ f.longitude }},
             label: "{{ f.feature_id|default:f.id }} — {{ f.get_feature_label }} | Ch: {{ f.chainage_m }}m",
             color: "#0d6efd"
-        },
+        }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
 
@@ -372,7 +372,7 @@
             lon:   {{ pp.mid_longitude }},
             label: "{{ pp.pp_id }} — Ch: {{ pp.mid_chainage_m }}m",
             color: "#dc3545"
-        },
+        }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
 
@@ -401,8 +401,8 @@
         {
             lat:   {{ s.latitude }},
             lon:   {{ s.longitude }},
-            label: "{{ s.structure_id }} — {{ s.get_feature_label }} | Ch: {{ s.chainage_m }}m",
-        },
+            label: "{{ s.structure_id }} — {{ s.get_feature_label }} | Ch: {{ s.chainage_m }}m"
+        }{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
 
