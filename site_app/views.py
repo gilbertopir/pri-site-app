@@ -18,6 +18,7 @@ from .utils import (
     chainage_to_gps,
     get_alignment_gps_line,
     get_next_pp_id,
+    get_next_feature_id,
 )
 
 
@@ -100,6 +101,7 @@ def capture(request, alignment_id):
 
     if request.method == "POST":
         entry_method = request.POST.get("entry_method", "GPS")
+        feature_id   = get_next_feature_id(alignment)
 
         if entry_method == "Manual":
             try:
@@ -129,6 +131,7 @@ def capture(request, alignment_id):
 
         feature = FeatureCapture.objects.create(
             alignment             = alignment,
+            feature_id            = feature_id,
             feature_type          = feature_type,
             custom_feature_type   = custom_type,
             side                  = request.POST.get("side", "NA"),
@@ -152,7 +155,7 @@ def capture(request, alignment_id):
 
         messages.success(
             request,
-            f"✅ Saved F{feature.id:03d} [{entry_method}]: {custom_type or feature_type} at chainage {projected['chainage']}m"
+            f"✅ Saved {feature.feature_id} [{entry_method}]: {custom_type or feature_type} at chainage {projected['chainage']}m"
         )
         return redirect("capture", alignment_id=alignment_id)
 
@@ -368,11 +371,12 @@ def api_nearest_features(request, alignment_id):
             return None
         dist = abs(f.chainage_m - current_chainage)
         return {
-            "chainage":     round(f.chainage_m, 3),
-            "distance":     round(dist, 1),
-            "label":        f.get_feature_label(),
-            "condition":    f.condition,
-            "side":         f.side,
+            "chainage":   round(f.chainage_m, 3),
+            "distance":   round(dist, 1),
+            "label":      f.get_feature_label(),
+            "condition":  f.condition,
+            "side":       f.side,
+            "feature_id": f.feature_id or f"F{f.id:03d}",
         }
 
     def pp_dict(pp, current_chainage):
@@ -630,7 +634,7 @@ def export_excel_only(request, alignment_id):
     for f in features:
         photo_names = ", ".join([Path(fp.photo.name).name for fp in f.photos.all()])
         ws1.append([
-            f"F{f.id:03d}", f.entry_method, f.get_feature_label(), f.side, f.condition,
+            f.feature_id or f"F{f.id:03d}", f.entry_method, f.get_feature_label(), f.side, f.condition,
             f.offset_from_edge_m, f.distance_along_edge_m,
             f.chainage_m, f.distance_from_alignment_m,
             f.latitude, f.longitude, f.easting, f.northing,
@@ -801,7 +805,7 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
     for f in features:
         photo_names = ", ".join([Path(fp.photo.name).name for fp in f.photos.all()])
         ws1.append([
-            f"F{f.id:03d}", f.entry_method, f.get_feature_label(), f.side, f.condition,
+            f.feature_id or f"F{f.id:03d}", f.entry_method, f.get_feature_label(), f.side, f.condition,
             f.offset_from_edge_m, f.distance_along_edge_m,
             f.chainage_m, f.distance_from_alignment_m,
             f.latitude, f.longitude, f.easting, f.northing,

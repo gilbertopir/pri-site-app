@@ -47,7 +47,7 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
                     <div class="fw-bold">
-                        <span class="badge bg-secondary me-1">F{{ f.id|stringformat:"03d" }}</span>
+                        <span class="badge bg-secondary me-1">{{ f.feature_id|default:f.id }}</span>
                         {% if f.entry_method == "Manual" %}
                         <span class="badge bg-warning text-dark me-1">Manual</span>
                         {% endif %}
@@ -276,7 +276,7 @@
         {
             lat:   {{ f.latitude }},
             lon:   {{ f.longitude }},
-            label: "F{{ f.id|stringformat:'03d' }} — {{ f.get_feature_label }} | Ch: {{ f.chainage_m }}m",
+            label: "{{ f.feature_id|default:f.id }} — {{ f.get_feature_label }} | Ch: {{ f.chainage_m }}m",
             color: "#0d6efd"
         },
         {% endfor %}

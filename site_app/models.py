@@ -102,6 +102,7 @@ class FeatureCapture(models.Model):
     ]
 
     alignment             = models.ForeignKey(Alignment, on_delete=models.CASCADE, related_name="features")
+    feature_id            = models.CharField(max_length=20, blank=True, default="")
     feature_type          = models.CharField(max_length=100, choices=FEATURE_TYPES)
     custom_feature_type   = models.CharField(max_length=100, blank=True)
     side                  = models.CharField(max_length=10, choices=SIDE_CHOICES)

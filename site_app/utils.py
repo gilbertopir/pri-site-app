@@ -237,15 +237,45 @@ def get_alignment_gps_line(points):
 # -----------------------------
 # Next passing place ID
 # -----------------------------
+def get_alignment_prefix(alignment):
+    """Strip PR prefix from alignment name e.g. PR304 -> 304, LT428 -> LT428."""
+    name = alignment.name.strip()
+    if name.upper().startswith("PR"):
+        return name[2:]
+    return name
+
+
+def get_next_feature_id(alignment):
+    """Generate next feature ID for alignment e.g. 304-F001."""
+    from .models import FeatureCapture
+    prefix   = get_alignment_prefix(alignment)
+    existing = FeatureCapture.objects.filter(alignment=alignment).values_list("feature_id", flat=True)
+    nums = []
+    for fid in existing:
+        if fid:
+            try:
+                nums.append(int(fid.split("-F")[-1]))
+            except (ValueError, IndexError):
+                pass
+    next_num = max(nums) + 1 if nums else 1
+    return f"{prefix}-F{next_num:03d}"
+
+
 def get_next_pp_id(alignment):
-    """Generate the next PP ID for a given alignment e.g. PP004."""
+    """Generate next PP ID for alignment e.g. 304-PP001."""
     from .models import PassingPlace
+    prefix   = get_alignment_prefix(alignment)
     existing = PassingPlace.objects.filter(alignment=alignment).values_list("pp_id", flat=True)
     nums = []
     for pp_id in existing:
-        try:
-            nums.append(int(pp_id.replace("PP", "")))
-        except ValueError:
-            pass
+        if pp_id:
+            try:
+                # Handle both old format PP001 and new format 304-PP001
+                if "-PP" in pp_id:
+                    nums.append(int(pp_id.split("-PP")[-1]))
+                else:
+                    nums.append(int(pp_id.replace("PP", "")))
+            except (ValueError, IndexError):
+                pass
     next_num = max(nums) + 1 if nums else 1
-    return f"PP{next_num:03d}"
+    return f"{prefix}-PP{next_num:03d}"

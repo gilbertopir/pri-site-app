@@ -334,7 +334,7 @@
 
             document.getElementById('feature-before').innerHTML =
                 data.feature_before
-                ? `<strong>${data.feature_before.label}</strong><br>
+                ? `<strong>${data.feature_before.feature_id}</strong> — ${data.feature_before.label}<br>
                    Ch: ${data.feature_before.chainage}m<br>
                    <span class="text-danger fw-bold">← ${data.feature_before.distance}m back</span><br>
                    ${data.feature_before.side} | ${data.feature_before.condition}`
@@ -342,7 +342,7 @@
 
             document.getElementById('feature-ahead').innerHTML =
                 data.feature_ahead
-                ? `<strong>${data.feature_ahead.label}</strong><br>
+                ? `<strong>${data.feature_ahead.feature_id}</strong> — ${data.feature_ahead.label}<br>
                    Ch: ${data.feature_ahead.chainage}m<br>
                    <span class="text-success fw-bold">→ ${data.feature_ahead.distance}m ahead</span><br>
                    ${data.feature_ahead.side} | ${data.feature_ahead.condition}`
