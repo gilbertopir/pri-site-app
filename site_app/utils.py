@@ -275,6 +275,25 @@ def get_next_structure_id(alignment):
                 pass
     next_num = max(nums) + 1 if nums else 1
     return f"{prefix}-S{next_num:03d}"
+
+
+def get_next_pp_id(alignment):
+    """Generate next PP ID for alignment e.g. 304-PP001."""
+    from .models import PassingPlace
+    prefix   = get_alignment_prefix(alignment)
+    existing = PassingPlace.objects.filter(alignment=alignment).values_list("pp_id", flat=True)
+    nums = []
+    for pp_id in existing:
+        if pp_id:
+            try:
+                if "-PP" in pp_id:
+                    nums.append(int(pp_id.split("-PP")[-1]))
+                else:
+                    nums.append(int(pp_id.replace("PP", "")))
+            except (ValueError, IndexError):
+                pass
+    next_num = max(nums) + 1 if nums else 1
+    return f"{prefix}-PP{next_num:03d}"
     """Generate next PP ID for alignment e.g. 304-PP001."""
     from .models import PassingPlace
     prefix   = get_alignment_prefix(alignment)
