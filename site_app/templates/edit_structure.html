@@ -67,14 +67,46 @@
             <i class="bi bi-info-circle me-1"></i>All dimensions in <strong>Millimetres (mm)</strong>. Leave blank if N/A.
         </div>
         <div class="row g-2">
-            {% for field_name, field_label in dims_fields %}
             <div class="col-6">
-                <label class="form-label fw-semibold small">{{ field_label }}</label>
-                <input type="number" name="{{ field_name }}" class="form-control"
-                       value="{{ s|getattr_safe:field_name }}"
-                       step="0.1" inputmode="decimal" placeholder="—">
+                <label class="form-label fw-semibold small">Bed Thickness</label>
+                <input type="number" name="bed_thickness_mm" class="form-control" value="{{ s.bed_thickness_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
             </div>
-            {% endfor %}
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Rise</label>
+                <input type="number" name="rise_mm" class="form-control" value="{{ s.rise_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Rise at Quarter Points</label>
+                <input type="number" name="rise_quarter_points_mm" class="form-control" value="{{ s.rise_quarter_points_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Abutment Length</label>
+                <input type="number" name="abutment_length_mm" class="form-control" value="{{ s.abutment_length_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Approx. Angle</label>
+                <input type="number" name="approx_angle" class="form-control" value="{{ s.approx_angle|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Span</label>
+                <input type="number" name="span_mm" class="form-control" value="{{ s.span_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Parapet Height</label>
+                <input type="number" name="parapet_height_mm" class="form-control" value="{{ s.parapet_height_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Parapet Thickness</label>
+                <input type="number" name="parapet_thickness_mm" class="form-control" value="{{ s.parapet_thickness_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Vehicle Clearance</label>
+                <input type="number" name="vehicle_clearance_mm" class="form-control" value="{{ s.vehicle_clearance_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Footpath Width</label>
+                <input type="number" name="footpath_width_mm" class="form-control" value="{{ s.footpath_width_mm|default:'' }}" step="0.1" inputmode="decimal" placeholder="—">
+            </div>
         </div>
         <div class="mt-2">
             <label class="form-label fw-semibold small">Type of Stone</label>
