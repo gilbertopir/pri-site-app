@@ -1074,8 +1074,13 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
         return redirect("admin_export")
 
     selected = volumes[vol_index]
-    type_label = "features" if photo_type == "features" else "passing_places"
-    filename   = f"{stem}_{type_label}_photos_vol{volume}_{datetime.now().strftime('%Y%m%d')}.zip"
+    if photo_type == "features":
+        type_label = "features"
+    elif photo_type == "structures":
+        type_label = "structures"
+    else:
+        type_label = "passing_places"
+    filename = f"{stem}_{type_label}_photos_vol{volume}_{datetime.now().strftime('%Y%m%d')}.zip"
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -1086,11 +1091,10 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
     response = HttpResponse(buffer.getvalue(), content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
-    if not request.user.is_staff:
-        return redirect("dashboard")
 
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment as XLAlign
+
+@login_required
+def export_excel_only(request, alignment_id):
     from io import BytesIO
     import zipfile
     from pathlib import Path
