@@ -25,13 +25,11 @@
     <i class="bi bi-broadcast me-2"></i>Tap "Get My Location" to begin
 </div>
 
-<!-- Distance warning -->
 <div id="distance-warning" class="distance-warning d-none">
     <i class="bi bi-exclamation-triangle me-2"></i>
     <span id="distance-warning-text"></span>
 </div>
 
-<!-- Next ID badge -->
 <div class="d-flex align-items-center gap-2 mb-3">
     <span class="badge bg-success fs-6 px-3 py-2">
         <i class="bi bi-hash me-1"></i>Next ID: {{ next_id }}
@@ -40,17 +38,15 @@
 
 <!-- Entry mode toggle -->
 <div class="d-flex gap-2 mb-3">
-    <button type="button" id="btn-gps-mode" onclick="setMode('GPS')"
-            class="btn btn-primary flex-fill">
+    <button type="button" id="btn-gps-mode" onclick="setMode('GPS')" class="btn btn-primary flex-fill">
         <i class="bi bi-crosshair me-1"></i>GPS
     </button>
-    <button type="button" id="btn-manual-mode" onclick="setMode('Manual')"
-            class="btn btn-outline-secondary flex-fill">
+    <button type="button" id="btn-manual-mode" onclick="setMode('Manual')" class="btn btn-outline-secondary flex-fill">
         <i class="bi bi-keyboard me-1"></i>Manual
     </button>
 </div>
 
-<!-- GPS mode controls -->
+<!-- GPS controls -->
 <div id="gps-controls">
     <div class="row g-2 mb-3">
         <div class="col-6">
@@ -62,7 +58,7 @@
         </div>
         <div class="col-6">
             <div class="metric-card">
-                <div class="metric-label">Distance from Alignment</div>
+                <div class="metric-label">Dist. from Alignment</div>
                 <div class="metric-value" id="dist-display">—</div>
                 <small class="text-muted">metres</small>
             </div>
@@ -73,242 +69,463 @@
     </button>
     <div id="accuracy-badge" class="d-none mb-3 text-center">
         <span id="accuracy-pill" class="badge fs-6 px-3 py-2">
-            <i class="bi bi-broadcast me-1"></i>
             Accuracy: <span id="accuracy-value">—</span>m
         </span>
         <div id="accuracy-hint" class="small mt-1"></div>
     </div>
 </div>
 
-<!-- Manual mode controls -->
+<!-- Manual controls -->
 <div id="manual-controls" class="d-none mb-3">
     <label class="form-label fw-semibold">Chainage (m)</label>
-    <input type="number" id="manual-chainage-input"
-           class="form-control form-control-lg"
-           min="0" max="{{ total }}" step="0.001"
-           inputmode="decimal"
+    <input type="number" id="manual-chainage-input" class="form-control form-control-lg"
+           min="0" max="{{ total }}" step="0.001" inputmode="decimal"
            placeholder="Enter chainage e.g. 1234.5">
-    <div class="small text-muted mt-1">
-        GPS coordinates calculated automatically from chainage.
-    </div>
     <div class="alert alert-warning py-2 small mt-2">
-        <i class="bi bi-exclamation-triangle me-1"></i>
-        Manual entry — coordinates from chainage, not measured on site.
+        <i class="bi bi-exclamation-triangle me-1"></i>Manual entry — coordinates from chainage.
     </div>
 </div>
 
 <hr>
 
-<!-- Form -->
 <form method="POST" enctype="multipart/form-data" id="structures-form">
-    {% csrf_token %}
+{% csrf_token %}
+<input type="hidden" name="latitude"        id="latitude-field"        value="">
+<input type="hidden" name="longitude"       id="longitude-field"       value="">
+<input type="hidden" name="gps_accuracy"    id="accuracy-field"        value="">
+<input type="hidden" name="entry_method"    id="entry-method-field"    value="GPS">
+<input type="hidden" name="manual_chainage" id="manual-chainage-field" value="">
 
-    <input type="hidden" name="latitude"        id="latitude-field"        value="">
-    <input type="hidden" name="longitude"       id="longitude-field"       value="">
-    <input type="hidden" name="gps_accuracy"    id="accuracy-field"        value="">
-    <input type="hidden" name="entry_method"    id="entry-method-field"    value="GPS">
-    <input type="hidden" name="manual_chainage" id="manual-chainage-field" value="">
-
-    <!-- Structure Name -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Structure Name <span class="text-muted fw-normal">(optional)</span></label>
-        <input type="text" name="structure_name" class="form-control"
-               placeholder="e.g. Burn of Badlipster Bridge">
+<!-- =====================
+     ID & CLASSIFICATION
+     ===================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-primary text-white fw-bold py-2">
+        <i class="bi bi-tag me-2"></i>ID & Classification
     </div>
+    <div class="card-body p-3">
 
-    <!-- Feature Type -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Feature Type</label>
-        <select name="feature_type" id="feature-type" class="form-select">
-            <option value="Arch Bridge">Arch Bridge</option>
-            <option value="Gabions">Gabions</option>
-            <option value="Multi-Cell Structure">Multi-Cell Structure</option>
-            <option value="Roadside Structure">Roadside Structure</option>
-            <option value="Bridge">Bridge</option>
-            <option value="Arch">Arch</option>
-            <option value="Abutment">Abutment</option>
-            <option value="Approaches">Approaches</option>
-            <option value="Beam">Beam</option>
-            <option value="Cill-Unit">Cill-Unit</option>
-            <option value="Column / Pier">Column / Pier</option>
-            <option value="Culvert">Culvert</option>
-            <option value="Cutting">Cutting</option>
-            <option value="Embankment">Embankment</option>
-            <option value="Headwall">Headwall</option>
-            <option value="Retaining Wall">Retaining Wall</option>
-            <option value="Watercourse">Watercourse</option>
-            <option value="Wingwall">Wingwall</option>
-            <option value="Other">Other</option>
-        </select>
-    </div>
-
-    <!-- Custom feature type -->
-    <div class="mb-3 d-none" id="custom-type-div">
-        <label class="form-label fw-semibold">Describe Feature Type</label>
-        <input type="text" name="custom_feature_type" class="form-control"
-               placeholder="Describe the structure type">
-    </div>
-
-    <!-- Spans & Span Length -->
-    <div class="row g-2 mb-3">
-        <div class="col-6">
-            <label class="form-label fw-semibold">No. of Spans</label>
-            <input type="number" name="num_spans" class="form-control"
-                   value="1" min="0" step="1" inputmode="numeric">
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Structure Name <span class="text-muted fw-normal">(optional)</span></label>
+            <input type="text" name="structure_name" class="form-control"
+                   placeholder="e.g. Burn of Badlipster Bridge">
         </div>
-        <div class="col-6">
-            <label class="form-label fw-semibold">Span Length (m)</label>
-            <input type="number" name="span_length_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
-        </div>
-    </div>
 
-    <!-- Clearance & Parapet Height -->
-    <div class="row g-2 mb-3">
-        <div class="col-6">
-            <label class="form-label fw-semibold">Vehicle Clearance (m)</label>
-            <input type="number" name="vehicle_clearance_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Feature Type</label>
+            <select name="feature_type" id="feature-type" class="form-select">
+                <option value="Bridge">Bridge</option>
+                <option value="Arch Bridge">Arch Bridge</option>
+                <option value="Gabions">Gabions</option>
+                <option value="Multi-Cell Structure">Multi-Cell Structure</option>
+                <option value="Roadside Structure">Roadside Structure</option>
+                <option value="Arch">Arch</option>
+                <option value="Abutment">Abutment</option>
+                <option value="Approaches">Approaches</option>
+                <option value="Beam">Beam</option>
+                <option value="Cill-Unit">Cill-Unit</option>
+                <option value="Column / Pier">Column / Pier</option>
+                <option value="Culvert">Culvert</option>
+                <option value="Cutting">Cutting</option>
+                <option value="Embankment">Embankment</option>
+                <option value="Headwall">Headwall</option>
+                <option value="Retaining Wall">Retaining Wall</option>
+                <option value="Watercourse">Watercourse</option>
+                <option value="Wingwall">Wingwall</option>
+                <option value="Other">Other</option>
+            </select>
         </div>
-        <div class="col-6">
-            <label class="form-label fw-semibold">Parapet Height (m)</label>
-            <input type="number" name="parapet_height_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
+
+        <div class="mb-0 d-none" id="custom-type-div">
+            <label class="form-label fw-semibold">Describe Feature Type</label>
+            <input type="text" name="custom_feature_type" class="form-control"
+                   placeholder="Describe the structure type">
         </div>
-    </div>
 
-    <!-- Parapet Width & Footpath Width -->
-    <div class="row g-2 mb-3">
-        <div class="col-6">
-            <label class="form-label fw-semibold">Parapet Width (m)</label>
-            <input type="number" name="parapet_width_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
+    </div>
+</div>
+
+<!-- =====================
+     DETAIL DATA & DIMS
+     ===================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-secondary text-white fw-bold py-2">
+        <i class="bi bi-rulers me-2"></i>Detail Data & Dims
+    </div>
+    <div class="card-body p-3">
+
+        <div class="alert alert-info py-2 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Please input all dimensions in <strong>Millimetres (mm)</strong>. Leave blank if not applicable.
         </div>
-        <div class="col-6">
-            <label class="form-label fw-semibold">Footpath Width (m)</label>
-            <input type="number" name="footpath_width_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
-        </div>
-    </div>
 
-    <!-- Material -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Material</label>
-        <select name="material" id="material-select" class="form-select">
-            <option value="Concrete">Concrete</option>
-            <option value="Masonry">Masonry</option>
-            <option value="Steel">Steel</option>
-            <option value="Timber">Timber</option>
-            <option value="Other">Other</option>
-        </select>
-    </div>
-
-    <!-- Custom material -->
-    <div class="mb-3 d-none" id="custom-material-div">
-        <label class="form-label fw-semibold">Describe Material</label>
-        <input type="text" name="custom_material" class="form-control"
-               placeholder="Describe the material">
-    </div>
-
-    <!-- Side -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Side of Road</label>
-        <div class="d-flex gap-3 flex-wrap">
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="side" id="side-LHS" value="LHS" checked>
-                <label class="form-check-label" for="side-LHS">LHS</label>
+        <div class="row g-2 mb-2">
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Bed Thickness</label>
+                <div class="input-group">
+                    <input type="number" name="bed_thickness_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
             </div>
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="side" id="side-RHS" value="RHS">
-                <label class="form-check-label" for="side-RHS">RHS</label>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Rise</label>
+                <div class="input-group">
+                    <input type="number" name="rise_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
             </div>
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="side" id="side-NA" value="N/A">
-                <label class="form-check-label" for="side-NA">N/A</label>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Rise at Quarter Points</label>
+                <div class="input-group">
+                    <input type="number" name="rise_quarter_points_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Condition -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Condition</label>
-        <div class="d-flex gap-3">
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="condition" id="cond-GOOD" value="GOOD" checked>
-                <label class="form-check-label" for="cond-GOOD">Good</label>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Abutment Length</label>
+                <div class="input-group">
+                    <input type="number" name="abutment_length_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
             </div>
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="condition" id="cond-FAIR" value="FAIR">
-                <label class="form-check-label" for="cond-FAIR">Fair</label>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Approx. Angle</label>
+                <div class="input-group">
+                    <input type="number" name="approx_angle" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">°</span>
+                </div>
             </div>
-            <div class="form-check">
-                <input class="form-check-input" type="radio" name="condition" id="cond-POOR" value="POOR">
-                <label class="form-check-label" for="cond-POOR">Poor</label>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Span</label>
+                <div class="input-group">
+                    <input type="number" name="span_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Parapet Height</label>
+                <div class="input-group">
+                    <input type="number" name="parapet_height_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Parapet Thickness</label>
+                <div class="input-group">
+                    <input type="number" name="parapet_thickness_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Vehicle Clearance</label>
+                <div class="input-group">
+                    <input type="number" name="vehicle_clearance_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Footpath Width</label>
+                <div class="input-group">
+                    <input type="number" name="footpath_width_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Offset & Distance Along Edge -->
-    <div class="row g-2 mb-3">
-        <div class="col-6">
-            <label class="form-label fw-semibold">Offset from Edge (m)</label>
-            <input type="number" name="offset_from_edge_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
+        <div class="mb-0">
+            <label class="form-label fw-semibold small">Type of Stone</label>
+            <input type="text" name="type_of_stone" class="form-control" placeholder="e.g. Sandstone, Granite...">
         </div>
-        <div class="col-6">
-            <label class="form-label fw-semibold">Distance Along Edge (m)</label>
-            <input type="number" name="distance_along_edge_m" class="form-control"
-                   value="0.0" min="0" step="0.01" inputmode="decimal">
+
+    </div>
+</div>
+
+<!-- =====================
+     BRICK DIMS
+     ===================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-secondary text-white fw-bold py-2">
+        <i class="bi bi-grid me-2"></i>Dims
+    </div>
+    <div class="card-body p-3">
+
+        <div class="alert alert-info py-2 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Please input all dimensions in <strong>Millimetres (mm)</strong>. Leave blank if not applicable.
         </div>
-    </div>
 
-    <!-- Recommended Action -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Recommended Action</label>
-        <select name="recommended_action" class="form-select">
-            <option value="No Action">No Action</option>
-            <option value="Monitor">Monitor</option>
-            <option value="Protect">Protect</option>
-            <option value="Modify">Modify</option>
-            <option value="Replace">Replace</option>
-        </select>
-    </div>
-
-    <!-- Notes -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
-        <textarea name="notes" class="form-control" rows="3"
-                  placeholder="Additional observations..."></textarea>
-    </div>
-
-    <!-- Photos -->
-    <div class="mb-3">
-        <label class="form-label fw-semibold">Photos <span class="text-muted fw-normal">(optional — max 3)</span></label>
-        <div class="alert alert-info py-2 small mb-2">
-            <i class="bi bi-lightbulb me-1"></i>
-            <strong>Tip:</strong> Take photos with your camera app first, then select from gallery.
+        <div class="fw-semibold small mb-2">Arch Brick Dims</div>
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <label class="form-label small">D</label>
+                <div class="input-group">
+                    <input type="number" name="arch_brick_d_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label small">B</label>
+                <div class="input-group">
+                    <input type="number" name="arch_brick_b_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
         </div>
-        <input type="file" name="photos" id="photo-input"
-               class="form-control" accept="image/*" multiple>
-        <div class="small text-muted mt-1" id="photo-counter"></div>
-        <div id="photo-preview" class="mt-2 d-none">
-            <div id="photo-thumbs" class="d-flex gap-2 flex-wrap"></div>
+
+        <div class="fw-semibold small mb-2">Abutment Brick Dims</div>
+        <div class="row g-2">
+            <div class="col-6">
+                <label class="form-label small">d</label>
+                <div class="input-group">
+                    <input type="number" name="abutment_brick_d_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label small">b</label>
+                <div class="input-group">
+                    <input type="number" name="abutment_brick_b_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- Map -->
-    <div class="map-container mb-3 d-none" id="map-container">
-        <div id="map" style="height:300px;border-radius:10px;"></div>
     </div>
+</div>
 
-    <!-- Save button -->
-    <button type="submit" id="save-btn" class="btn btn-success w-100 btn-lg mb-3">
-        <i class="bi bi-building me-2"></i>Save Structure
-    </button>
+<!-- =====================
+     ARCH BARREL JOINTS
+     ===================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-dark text-white fw-bold py-2">
+        <i class="bi bi-bricks me-2"></i>Arch Barrel Joints
+    </div>
+    <div class="card-body p-3">
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Bed Joint Thickness for the Main Arch Barrel</label>
+            <div class="d-flex flex-column gap-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="bed_joint_thickness" value="up_to_6mm" id="bjt1">
+                    <label class="form-check-label" for="bjt1">Widths up to 6mm</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="bed_joint_thickness" value="6mm_to_12.5mm" id="bjt2">
+                    <label class="form-check-label" for="bjt2">Widths between 6mm and 12.5mm</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="bed_joint_thickness" value="over_12.5mm" id="bjt3">
+                    <label class="form-check-label" for="bjt3">Widths over 12.5mm</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-0">
+            <label class="form-label fw-semibold">Joints in the Main Arch Barrel</label>
+            <div class="d-flex flex-column gap-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="arch_barrel_joints" value="pointed_good" id="abj1">
+                    <label class="form-check-label" for="abj1">Pointed joints in good condition</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="arch_barrel_joints" value="unpointed_poor" id="abj2">
+                    <label class="form-check-label" for="abj2">Un-pointed joints, poor condition and insufficiently filled to 12.5mm from edge</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="arch_barrel_joints" value="10pct_unfilled" id="abj3">
+                    <label class="form-check-label" for="abj3">With 10% of the thickness insufficiently filled</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="arch_barrel_joints" value="10_30pct_unfilled" id="abj4">
+                    <label class="form-check-label" for="abj4">Insufficiently filled for more than 10% but less than 30% of the thickness of the barrel</label>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- =====================
+     DEFECTS
+     ===================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-danger text-white fw-bold py-2">
+        <i class="bi bi-exclamation-triangle me-2"></i>Defects
+    </div>
+    <div class="card-body p-3">
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">General Mortar Strength</label>
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="mortar_strength" value="Crumbly" id="ms1">
+                    <label class="form-check-label" for="ms1">Crumbly</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="mortar_strength" value="Solid" id="ms2">
+                    <label class="form-check-label" for="ms2">Solid</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Mortar in the Arch Barrel</label>
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="mortar_barrel" value="Good" id="mb1">
+                    <label class="form-check-label" for="mb1">Good</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="mortar_barrel" value="Loose_Friable" id="mb2">
+                    <label class="form-check-label" for="mb2">Loose or Friable</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Arch Barrel Cracking</label>
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="arch_barrel_cracking" value="Yes" id="abc1">
+                    <label class="form-check-label" for="abc1">Yes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="arch_barrel_cracking" value="No" id="abc2">
+                    <label class="form-check-label" for="abc2">No</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Additional Defects</label>
+            <div class="row g-2">
+                <div class="col-12">
+                    <label class="form-label small">Location</label>
+                    <input type="text" name="defect_location" class="form-control" placeholder="e.g. East spandrel wall">
+                </div>
+                <div class="col-12">
+                    <label class="form-label small">Direction</label>
+                    <input type="text" name="defect_direction" class="form-control" placeholder="e.g. Longitudinal">
+                </div>
+                <div class="col-12">
+                    <label class="form-label small">Thickness</label>
+                    <input type="text" name="defect_thickness" class="form-control" placeholder="e.g. 2mm">
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-0">
+            <label class="form-label fw-semibold">Recommended Action</label>
+            <select name="recommended_action" class="form-select">
+                <option value="">— Select —</option>
+                <option value="No Action">No Action</option>
+                <option value="Monitor">Monitor</option>
+                <option value="Protect">Protect</option>
+                <option value="Modify">Modify</option>
+                <option value="Replace">Replace</option>
+            </select>
+        </div>
+
+    </div>
+</div>
+
+<!-- =====================
+     OTHER GENERAL FIELDS
+     ===================== -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-success text-white fw-bold py-2">
+        <i class="bi bi-list-check me-2"></i>Other General Fields
+    </div>
+    <div class="card-body p-3">
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Side of Road</label>
+            <div class="d-flex gap-3 flex-wrap">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="side" id="side-LHS" value="LHS">
+                    <label class="form-check-label" for="side-LHS">LHS</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="side" id="side-RHS" value="RHS">
+                    <label class="form-check-label" for="side-RHS">RHS</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="side" id="side-NA" value="N/A">
+                    <label class="form-check-label" for="side-NA">N/A</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-semibold">Condition</label>
+            <div class="d-flex gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="condition" id="cond-GOOD" value="GOOD">
+                    <label class="form-check-label" for="cond-GOOD">Good</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="condition" id="cond-FAIR" value="FAIR">
+                    <label class="form-check-label" for="cond-FAIR">Fair</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="condition" id="cond-POOR" value="POOR">
+                    <label class="form-check-label" for="cond-POOR">Poor</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Offset from Edge</label>
+                <div class="input-group">
+                    <input type="number" name="offset_from_edge_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <label class="form-label fw-semibold small">Distance Along Edge</label>
+                <div class="input-group">
+                    <input type="number" name="distance_along_edge_mm" class="form-control" step="0.1" inputmode="decimal" placeholder="—">
+                    <span class="input-group-text small">mm</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-0">
+            <label class="form-label fw-semibold">Notes <span class="text-muted fw-normal">(optional)</span></label>
+            <textarea name="notes" class="form-control" rows="3" placeholder="Additional observations..."></textarea>
+        </div>
+
+    </div>
+</div>
+
+<!-- Photos -->
+<div class="mb-3">
+    <label class="form-label fw-semibold">Photos <span class="text-muted fw-normal">(optional — max 3)</span></label>
+    <div class="alert alert-info py-2 small mb-2">
+        <i class="bi bi-lightbulb me-1"></i>
+        <strong>Tip:</strong> Take photos first, then select from gallery.
+    </div>
+    <input type="file" name="photos" id="photo-input" class="form-control" accept="image/*" multiple>
+    <div class="small text-muted mt-1" id="photo-counter"></div>
+    <div id="photo-preview" class="mt-2 d-none">
+        <div id="photo-thumbs" class="d-flex gap-2 flex-wrap"></div>
+    </div>
+</div>
+
+<!-- Map -->
+<div class="map-container mb-3 d-none" id="map-container">
+    <div id="map" style="height:300px;border-radius:10px;"></div>
+</div>
+
+<!-- Save -->
+<button type="submit" id="save-btn" class="btn btn-success w-100 btn-lg mb-3">
+    <i class="bi bi-building me-2"></i>Save Structure
+</button>
 
 </form>
 
-<!-- Structures recorded so far -->
+<!-- Structures recorded -->
 {% if structure_list %}
 <hr>
 <h6 class="fw-bold mb-3">
@@ -318,22 +535,20 @@
 {% for s in structure_list %}
 <div class="card border-0 shadow-sm mb-2">
     <div class="card-body p-2">
-        <div class="d-flex align-items-start">
-            <div class="flex-grow-1">
-                <div class="fw-bold small">
-                    <span class="badge bg-success me-1">{{ s.structure_id }}</span>
-                    {% if s.entry_method == "Manual" %}
-                    <span class="badge bg-warning text-dark me-1">Manual</span>
-                    {% endif %}
-                    {{ s.get_feature_label }}
-                </div>
-                {% if s.structure_name %}
-                <div class="small text-muted">{{ s.structure_name }}</div>
-                {% endif %}
-                <div class="small text-muted">
-                    Ch: {{ s.chainage_m }}m | {{ s.side }} | {{ s.condition }} | {{ s.recommended_action }}
-                </div>
-            </div>
+        <div class="fw-bold small">
+            <span class="badge bg-success me-1">{{ s.structure_id }}</span>
+            {% if s.entry_method == "Manual" %}
+            <span class="badge bg-warning text-dark me-1">Manual</span>
+            {% endif %}
+            {{ s.get_feature_label }}
+        </div>
+        {% if s.structure_name %}
+        <div class="small text-muted">{{ s.structure_name }}</div>
+        {% endif %}
+        <div class="small text-muted">
+            Ch: {{ s.chainage_m }}m
+            {% if s.condition %} | {{ s.condition }}{% endif %}
+            {% if s.recommended_action %} | {{ s.recommended_action }}{% endif %}
         </div>
     </div>
 </div>
@@ -351,7 +566,7 @@
 
     let currentMode      = 'GPS';
     let locationCaptured = false;
-    let map              = null;
+    let map_obj          = null;
     let projMarker       = null;
     let phoneMarker      = null;
     let connectLine      = null;
@@ -376,13 +591,6 @@
             locationCaptured = true;
         }
     }
-
-    // Initialise map
-    const map_obj = L.map('map').setView([alignmentLine[0][0], alignmentLine[0][1]], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map_obj);
-    L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map_obj);
 
     document.getElementById('get-location-btn').addEventListener('click', function () {
         const btn = this;
@@ -412,33 +620,37 @@
                     document.getElementById('chainage-display').textContent = data.chainage.toFixed(3);
                     document.getElementById('dist-display').textContent     = data.distance_from_alignment.toFixed(3);
 
-                    const warn = document.getElementById('distance-warning');
                     if (data.distance_from_alignment > DISTANCE_WARNING_M) {
-                        warn.classList.remove('d-none');
+                        document.getElementById('distance-warning').classList.remove('d-none');
                         document.getElementById('distance-warning-text').textContent =
                             `You are ${data.distance_from_alignment.toFixed(1)}m from the alignment.`;
                     } else {
-                        warn.classList.add('d-none');
+                        document.getElementById('distance-warning').classList.add('d-none');
                     }
 
                     locationCaptured = true;
 
-                    // Update map
                     const mapContainer = document.getElementById('map-container');
                     mapContainer.classList.remove('d-none');
 
-                    if (projMarker) map_obj.removeLayer(projMarker);
+                    if (!map_obj) {
+                        map_obj = L.map('map').setView([data.latitude, data.longitude], 17);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© OpenStreetMap contributors'
+                        }).addTo(map_obj);
+                        L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map_obj);
+                    }
+
+                    if (projMarker)  map_obj.removeLayer(projMarker);
                     if (phoneMarker) map_obj.removeLayer(phoneMarker);
                     if (connectLine) map_obj.removeLayer(connectLine);
 
-                    projMarker = L.marker([data.latitude, data.longitude], {
+                    projMarker  = L.marker([data.latitude, data.longitude], {
                         icon: L.divIcon({ className: '', html: '<div style="background:#dc3545;width:14px;height:14px;border-radius:50%;border:2px solid white;"></div>', iconAnchor:[7,7] })
                     }).addTo(map_obj);
-
                     phoneMarker = L.marker([lat, lon], {
                         icon: L.divIcon({ className: '', html: '<div style="background:#198754;width:14px;height:14px;border-radius:50%;border:2px solid white;"></div>', iconAnchor:[7,7] })
                     }).addTo(map_obj);
-
                     connectLine = L.polyline([[lat,lon],[data.latitude,data.longitude]], {color:'#ffc107',weight:3,dashArray:'6'}).addTo(map_obj);
                     map_obj.setView([data.latitude, data.longitude], 17);
                     setTimeout(() => map_obj.invalidateSize(), 100);
@@ -460,15 +672,10 @@
         );
     });
 
-    // Custom type toggles
     document.getElementById('feature-type').addEventListener('change', function () {
         document.getElementById('custom-type-div').classList.toggle('d-none', this.value !== 'Other');
     });
-    document.getElementById('material-select').addEventListener('change', function () {
-        document.getElementById('custom-material-div').classList.toggle('d-none', this.value !== 'Other');
-    });
 
-    // Form submit with resize
     document.getElementById('structures-form').addEventListener('submit', async function (e) {
         e.preventDefault();
 
@@ -504,7 +711,6 @@
         }
     });
 
-    // Photo preview
     document.getElementById('photo-input').addEventListener('change', function () {
         const preview = document.getElementById('photo-preview');
         const thumbs  = document.getElementById('photo-thumbs');
@@ -541,13 +747,13 @@
         document.getElementById('accuracy-value').textContent = Math.round(acc);
         if (acc <= 10) {
             pill.className = 'badge fs-6 px-3 py-2 bg-success';
-            hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Excellent — good to capture';
+            hint.innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Excellent';
         } else if (acc <= 20) {
             pill.className = 'badge fs-6 px-3 py-2 bg-warning text-dark';
-            hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Fair — consider waiting';
+            hint.innerHTML = '<i class="bi bi-exclamation-circle text-warning me-1"></i>Fair';
         } else {
             pill.className = 'badge fs-6 px-3 py-2 bg-danger';
-            hint.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i>Poor — move to open ground';
+            hint.innerHTML = '<i class="bi bi-x-circle text-danger me-1"></i>Poor';
         }
     }
 

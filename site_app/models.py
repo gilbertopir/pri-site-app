@@ -214,11 +214,11 @@ class PassingPlacePhoto(models.Model):
 class Structure(models.Model):
 
     FEATURE_TYPES = [
+        ("Bridge",              "Bridge"),
         ("Arch Bridge",         "Arch Bridge"),
         ("Gabions",             "Gabions"),
         ("Multi-Cell Structure","Multi-Cell Structure"),
         ("Roadside Structure",  "Roadside Structure"),
-        ("Bridge",              "Bridge"),
         ("Arch",                "Arch"),
         ("Abutment",            "Abutment"),
         ("Approaches",          "Approaches"),
@@ -233,14 +233,6 @@ class Structure(models.Model):
         ("Watercourse",         "Watercourse"),
         ("Wingwall",            "Wingwall"),
         ("Other",               "Other"),
-    ]
-
-    MATERIAL_CHOICES = [
-        ("Concrete", "Concrete"),
-        ("Masonry",  "Masonry"),
-        ("Steel",    "Steel"),
-        ("Timber",   "Timber"),
-        ("Other",    "Other"),
     ]
 
     SIDE_CHOICES = [
@@ -263,36 +255,89 @@ class Structure(models.Model):
         ("Replace",   "Replace"),
     ]
 
+    BED_JOINT_CHOICES = [
+        ("up_to_6mm",       "Widths up to 6mm"),
+        ("6mm_to_12.5mm",   "Widths between 6mm and 12.5mm"),
+        ("over_12.5mm",     "Widths over 12.5mm"),
+    ]
+
+    ARCH_JOINT_CHOICES = [
+        ("pointed_good",       "Pointed joints in good condition"),
+        ("unpointed_poor",     "Un-pointed joints, poor condition and insufficiently filled to 12.5mm from edge"),
+        ("10pct_unfilled",     "With 10% of the thickness insufficiently filled"),
+        ("10_30pct_unfilled",  "Insufficiently filled for more than 10% but less than 30% of the thickness of the barrel"),
+    ]
+
+    MORTAR_STRENGTH_CHOICES = [
+        ("Crumbly", "Crumbly"),
+        ("Solid",   "Solid"),
+    ]
+
+    MORTAR_BARREL_CHOICES = [
+        ("Good",            "Good"),
+        ("Loose_Friable",   "Loose or Friable"),
+    ]
+
+    # --- ID & Classification ---
     alignment           = models.ForeignKey(Alignment, on_delete=models.CASCADE, related_name="structures")
     structure_id        = models.CharField(max_length=20, blank=True, default="")
     structure_name      = models.CharField(max_length=200, blank=True)
     feature_type        = models.CharField(max_length=50, choices=FEATURE_TYPES)
     custom_feature_type = models.CharField(max_length=100, blank=True)
-    num_spans           = models.IntegerField(default=1)
-    span_length_m       = models.FloatField(default=0.0)
-    vehicle_clearance_m = models.FloatField(default=0.0)
-    parapet_height_m    = models.FloatField(default=0.0)
-    parapet_width_m     = models.FloatField(default=0.0)
-    footpath_width_m    = models.FloatField(default=0.0)
-    material            = models.CharField(max_length=20, choices=MATERIAL_CHOICES)
-    custom_material     = models.CharField(max_length=100, blank=True)
-    side                = models.CharField(max_length=10, choices=SIDE_CHOICES)
-    condition           = models.CharField(max_length=10, choices=CONDITION_CHOICES)
-    offset_from_edge_m  = models.FloatField(default=0.0)
-    distance_along_edge_m = models.FloatField(default=0.0)
-    recommended_action  = models.CharField(max_length=20, choices=ACTION_CHOICES, default="No Action")
-    notes               = models.TextField(blank=True)
-    chainage_m          = models.FloatField()
+
+    # --- Detail Data & Dims (mm) ---
+    bed_thickness_mm        = models.FloatField(null=True, blank=True)
+    rise_mm                 = models.FloatField(null=True, blank=True)
+    rise_quarter_points_mm  = models.FloatField(null=True, blank=True)
+    abutment_length_mm      = models.FloatField(null=True, blank=True)
+    approx_angle            = models.FloatField(null=True, blank=True)
+    span_mm                 = models.FloatField(null=True, blank=True)
+    parapet_height_mm       = models.FloatField(null=True, blank=True)
+    parapet_thickness_mm    = models.FloatField(null=True, blank=True)
+    vehicle_clearance_mm    = models.FloatField(null=True, blank=True)
+    footpath_width_mm       = models.FloatField(null=True, blank=True)
+    type_of_stone           = models.CharField(max_length=200, blank=True)
+
+    # --- Arch Brick Dims (mm) ---
+    arch_brick_d_mm     = models.FloatField(null=True, blank=True)
+    arch_brick_b_mm     = models.FloatField(null=True, blank=True)
+
+    # --- Abutment Brick Dims (mm) ---
+    abutment_brick_d_mm = models.FloatField(null=True, blank=True)
+    abutment_brick_b_mm = models.FloatField(null=True, blank=True)
+
+    # --- Arch Barrel Joints ---
+    bed_joint_thickness = models.CharField(max_length=20, choices=BED_JOINT_CHOICES, blank=True)
+    arch_barrel_joints  = models.CharField(max_length=30, choices=ARCH_JOINT_CHOICES, blank=True)
+
+    # --- Defects ---
+    mortar_strength         = models.CharField(max_length=20, choices=MORTAR_STRENGTH_CHOICES, blank=True)
+    mortar_barrel           = models.CharField(max_length=20, choices=MORTAR_BARREL_CHOICES, blank=True)
+    arch_barrel_cracking    = models.CharField(max_length=5, choices=[("Yes","Yes"),("No","No")], blank=True)
+    defect_location         = models.CharField(max_length=200, blank=True)
+    defect_direction        = models.CharField(max_length=200, blank=True)
+    defect_thickness        = models.CharField(max_length=200, blank=True)
+    recommended_action      = models.CharField(max_length=20, choices=ACTION_CHOICES, blank=True)
+
+    # --- General ---
+    side                    = models.CharField(max_length=10, choices=SIDE_CHOICES, blank=True)
+    condition               = models.CharField(max_length=10, choices=CONDITION_CHOICES, blank=True)
+    offset_from_edge_mm     = models.FloatField(null=True, blank=True)
+    distance_along_edge_mm  = models.FloatField(null=True, blank=True)
+    notes                   = models.TextField(blank=True)
+
+    # --- Location ---
+    chainage_m                = models.FloatField()
     distance_from_alignment_m = models.FloatField()
-    latitude            = models.FloatField()
-    longitude           = models.FloatField()
-    easting             = models.FloatField()
-    northing            = models.FloatField()
-    gps_accuracy_m      = models.FloatField(null=True, blank=True)
-    entry_method        = models.CharField(max_length=10, default="GPS",
-                             choices=[("GPS", "GPS Capture"), ("Manual", "Manual Entry")])
-    captured_by         = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="structures")
-    captured_at         = models.DateTimeField(auto_now_add=True)
+    latitude                  = models.FloatField()
+    longitude                 = models.FloatField()
+    easting                   = models.FloatField()
+    northing                  = models.FloatField()
+    gps_accuracy_m            = models.FloatField(null=True, blank=True)
+    entry_method              = models.CharField(max_length=10, default="GPS",
+                                   choices=[("GPS","GPS Capture"),("Manual","Manual Entry")])
+    captured_by               = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="structures")
+    captured_at               = models.DateTimeField(auto_now_add=True)
 
     def get_feature_label(self):
         if self.feature_type == "Other" and self.custom_feature_type:
