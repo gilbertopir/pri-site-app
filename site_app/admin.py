@@ -126,7 +126,7 @@ class StructurePhotoInline(admin.TabularInline):
 @admin.register(Structure)
 class StructureAdmin(admin.ModelAdmin):
     list_display    = ["structure_id", "structure_name", "feature_type", "alignment", "chainage_m", "condition", "captured_by", "captured_at"]
-    list_filter     = ["alignment", "feature_type", "condition", "material"]
+    list_filter     = ["alignment", "feature_type", "condition"]
     search_fields   = ["structure_name", "notes", "custom_feature_type"]
     readonly_fields = ["captured_at"]
     inlines         = [StructurePhotoInline]
