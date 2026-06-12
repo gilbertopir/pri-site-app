@@ -291,36 +291,71 @@ def structures(request, alignment_id):
 
         photos = request.FILES.getlist("photos")
 
-        s = Structure.objects.create(
-            alignment           = alignment,
-            structure_id        = structure_id,
-            structure_name      = request.POST.get("structure_name", ""),
-            feature_type        = request.POST.get("feature_type", ""),
-            custom_feature_type = request.POST.get("custom_feature_type", ""),
-            num_spans           = int(request.POST.get("num_spans", 1) or 1),
-            span_length_m       = float(request.POST.get("span_length_m", 0) or 0),
-            vehicle_clearance_m = float(request.POST.get("vehicle_clearance_m", 0) or 0),
-            parapet_height_m    = float(request.POST.get("parapet_height_m", 0) or 0),
-            parapet_width_m     = float(request.POST.get("parapet_width_m", 0) or 0),
-            footpath_width_m    = float(request.POST.get("footpath_width_m", 0) or 0),
-            material            = request.POST.get("material", "Concrete"),
-            custom_material     = request.POST.get("custom_material", ""),
-            side                = request.POST.get("side", "LHS"),
-            condition           = request.POST.get("condition", "GOOD"),
-            offset_from_edge_m  = float(request.POST.get("offset_from_edge_m", 0) or 0),
-            distance_along_edge_m = float(request.POST.get("distance_along_edge_m", 0) or 0),
-            recommended_action  = request.POST.get("recommended_action", "No Action"),
-            notes               = request.POST.get("notes", ""),
-            chainage_m          = projected["chainage"],
+        def get_mm(field):
+            val = request.POST.get(field, "").strip()
+            if val == "":
+                return None
+            try:
+                return float(val)
+            except ValueError:
+                return None
+
+        try:
+            s = Structure.objects.create(
+                alignment           = alignment,
+                structure_id        = structure_id,
+                structure_name      = request.POST.get("structure_name", ""),
+                feature_type        = request.POST.get("feature_type", "Bridge"),
+                custom_feature_type = request.POST.get("custom_feature_type", ""),
+            # Detail Data & Dims
+            bed_thickness_mm        = get_mm("bed_thickness_mm"),
+            rise_mm                 = get_mm("rise_mm"),
+            rise_quarter_points_mm  = get_mm("rise_quarter_points_mm"),
+            abutment_length_mm      = get_mm("abutment_length_mm"),
+            approx_angle            = get_mm("approx_angle"),
+            span_mm                 = get_mm("span_mm"),
+            parapet_height_mm       = get_mm("parapet_height_mm"),
+            parapet_thickness_mm    = get_mm("parapet_thickness_mm"),
+            vehicle_clearance_mm    = get_mm("vehicle_clearance_mm"),
+            footpath_width_mm       = get_mm("footpath_width_mm"),
+            type_of_stone           = request.POST.get("type_of_stone", ""),
+            # Brick dims
+            arch_brick_d_mm     = get_mm("arch_brick_d_mm"),
+            arch_brick_b_mm     = get_mm("arch_brick_b_mm"),
+            abutment_brick_d_mm = get_mm("abutment_brick_d_mm"),
+            abutment_brick_b_mm = get_mm("abutment_brick_b_mm"),
+            # Arch barrel joints
+            bed_joint_thickness = request.POST.get("bed_joint_thickness", ""),
+            arch_barrel_joints  = request.POST.get("arch_barrel_joints", ""),
+            # Defects
+            mortar_strength         = request.POST.get("mortar_strength", ""),
+            mortar_barrel           = request.POST.get("mortar_barrel", ""),
+            arch_barrel_cracking    = request.POST.get("arch_barrel_cracking", ""),
+            defect_location         = request.POST.get("defect_location", ""),
+            defect_direction        = request.POST.get("defect_direction", ""),
+            defect_thickness        = request.POST.get("defect_thickness", ""),
+            recommended_action      = request.POST.get("recommended_action", ""),
+            # General
+            side                    = request.POST.get("side", ""),
+            condition               = request.POST.get("condition", ""),
+            offset_from_edge_mm     = get_mm("offset_from_edge_mm"),
+            distance_along_edge_mm  = get_mm("distance_along_edge_mm"),
+            notes                   = request.POST.get("notes", ""),
+            # Location
+            chainage_m              = projected["chainage"],
             distance_from_alignment_m = projected["distance_from_alignment"],
-            latitude            = projected["latitude"],
-            longitude           = projected["longitude"],
-            easting             = projected["easting"],
-            northing            = projected["northing"],
-            gps_accuracy_m      = float(request.POST.get("gps_accuracy", 0) or 0) if entry_method == "GPS" else None,
-            entry_method        = entry_method,
-            captured_by         = request.user,
+            latitude                = projected["latitude"],
+            longitude               = projected["longitude"],
+            easting                 = projected["easting"],
+            northing                = projected["northing"],
+            gps_accuracy_m          = float(request.POST.get("gps_accuracy", 0) or 0) if entry_method == "GPS" else None,
+            entry_method            = entry_method,
+            captured_by             = request.user,
         )
+
+        except Exception as e:
+            messages.error(request, f"Error saving structure: {str(e)}")
+            return redirect("structures", alignment_id=alignment_id)
 
         for photo in photos:
             StructurePhoto.objects.create(structure=s, photo=photo)
@@ -357,23 +392,44 @@ def edit_structure(request, structure_id):
     alignment = s.alignment
 
     if request.method == "POST":
-        s.structure_name      = request.POST.get("structure_name", s.structure_name)
+        def get_mm(field):
+            val = request.POST.get(field, "").strip()
+            if val == "": return None
+            try: return float(val)
+            except ValueError: return None
+
+        s.structure_name      = request.POST.get("structure_name", "")
         s.feature_type        = request.POST.get("feature_type", s.feature_type)
         s.custom_feature_type = request.POST.get("custom_feature_type", "")
-        s.num_spans           = int(request.POST.get("num_spans", 1) or 1)
-        s.span_length_m       = float(request.POST.get("span_length_m", 0) or 0)
-        s.vehicle_clearance_m = float(request.POST.get("vehicle_clearance_m", 0) or 0)
-        s.parapet_height_m    = float(request.POST.get("parapet_height_m", 0) or 0)
-        s.parapet_width_m     = float(request.POST.get("parapet_width_m", 0) or 0)
-        s.footpath_width_m    = float(request.POST.get("footpath_width_m", 0) or 0)
-        s.material            = request.POST.get("material", s.material)
-        s.custom_material     = request.POST.get("custom_material", "")
-        s.side                = request.POST.get("side", s.side)
-        s.condition           = request.POST.get("condition", s.condition)
-        s.offset_from_edge_m  = float(request.POST.get("offset_from_edge_m", 0) or 0)
-        s.distance_along_edge_m = float(request.POST.get("distance_along_edge_m", 0) or 0)
-        s.recommended_action  = request.POST.get("recommended_action", s.recommended_action)
-        s.notes               = request.POST.get("notes", "")
+        s.bed_thickness_mm        = get_mm("bed_thickness_mm")
+        s.rise_mm                 = get_mm("rise_mm")
+        s.rise_quarter_points_mm  = get_mm("rise_quarter_points_mm")
+        s.abutment_length_mm      = get_mm("abutment_length_mm")
+        s.approx_angle            = get_mm("approx_angle")
+        s.span_mm                 = get_mm("span_mm")
+        s.parapet_height_mm       = get_mm("parapet_height_mm")
+        s.parapet_thickness_mm    = get_mm("parapet_thickness_mm")
+        s.vehicle_clearance_mm    = get_mm("vehicle_clearance_mm")
+        s.footpath_width_mm       = get_mm("footpath_width_mm")
+        s.type_of_stone           = request.POST.get("type_of_stone", "")
+        s.arch_brick_d_mm         = get_mm("arch_brick_d_mm")
+        s.arch_brick_b_mm         = get_mm("arch_brick_b_mm")
+        s.abutment_brick_d_mm     = get_mm("abutment_brick_d_mm")
+        s.abutment_brick_b_mm     = get_mm("abutment_brick_b_mm")
+        s.bed_joint_thickness     = request.POST.get("bed_joint_thickness", "")
+        s.arch_barrel_joints      = request.POST.get("arch_barrel_joints", "")
+        s.mortar_strength         = request.POST.get("mortar_strength", "")
+        s.mortar_barrel           = request.POST.get("mortar_barrel", "")
+        s.arch_barrel_cracking    = request.POST.get("arch_barrel_cracking", "")
+        s.defect_location         = request.POST.get("defect_location", "")
+        s.defect_direction        = request.POST.get("defect_direction", "")
+        s.defect_thickness        = request.POST.get("defect_thickness", "")
+        s.recommended_action      = request.POST.get("recommended_action", "")
+        s.side                    = request.POST.get("side", "")
+        s.condition               = request.POST.get("condition", "")
+        s.offset_from_edge_mm     = get_mm("offset_from_edge_mm")
+        s.distance_along_edge_mm  = get_mm("distance_along_edge_mm")
+        s.notes                   = request.POST.get("notes", "")
         s.save()
         messages.success(request, f"✅ {s.structure_id} updated successfully.")
         return redirect("view_points", alignment_id=alignment.id)
@@ -871,13 +927,29 @@ def export_excel_only(request, alignment_id):
     ws4 = wb.create_sheet("Structures")
     str_headers = [
         "ID", "Entry Method", "Structure Name", "Feature Type",
-        "No. Spans", "Span Length (m)", "Vehicle Clearance (m)",
-        "Parapet Height (m)", "Parapet Width (m)", "Footpath Width (m)",
-        "Material", "Side", "Condition",
-        "Offset from Edge (m)", "Distance Along Edge (m)",
-        "Recommended Action", "Chainage (m)", "Distance from Alignment (m)",
+        # Detail Data & Dims
+        "Bed Thickness (mm)", "Rise (mm)", "Rise at Quarter Points (mm)",
+        "Abutment Length (mm)", "Approx. Angle", "Span (mm)",
+        "Parapet Height (mm)", "Parapet Thickness (mm)",
+        "Vehicle Clearance (mm)", "Footpath Width (mm)", "Type of Stone",
+        # Brick Dims
+        "Arch Brick D (mm)", "Arch Brick B (mm)",
+        "Abutment Brick d (mm)", "Abutment Brick b (mm)",
+        # Arch Barrel Joints
+        "Bed Joint Thickness", "Arch Barrel Joints",
+        # Defects
+        "General Mortar Strength", "Mortar in Arch Barrel",
+        "Arch Barrel Cracking",
+        "Defect Location", "Defect Direction", "Defect Thickness",
+        "Recommended Action",
+        # General
+        "Side", "Condition",
+        "Offset from Edge (mm)", "Distance Along Edge (mm)",
+        "Notes",
+        # Location
+        "Chainage (m)", "Distance from Alignment (m)",
         "Latitude", "Longitude", "Easting", "Northing",
-        "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
+        "GPS Accuracy (m)", "Photo", "Captured By", "Captured At"
     ]
     for col, header in enumerate(str_headers, 1):
         cell = ws4.cell(row=1, column=col, value=header)
@@ -887,17 +959,28 @@ def export_excel_only(request, alignment_id):
 
     for s in str_list:
         photo_names = ", ".join([Path(sp.photo.name).name for sp in s.photos.all()])
-        mat   = s.custom_material   if s.material     == "Other" and s.custom_material   else s.material
         ftype = s.custom_feature_type if s.feature_type == "Other" and s.custom_feature_type else s.feature_type
         ws4.append([
             s.structure_id, s.entry_method, s.structure_name, ftype,
-            s.num_spans, s.span_length_m, s.vehicle_clearance_m,
-            s.parapet_height_m, s.parapet_width_m, s.footpath_width_m,
-            mat, s.side, s.condition,
-            s.offset_from_edge_m, s.distance_along_edge_m,
-            s.recommended_action, s.chainage_m, s.distance_from_alignment_m,
+            s.bed_thickness_mm, s.rise_mm, s.rise_quarter_points_mm,
+            s.abutment_length_mm, s.approx_angle, s.span_mm,
+            s.parapet_height_mm, s.parapet_thickness_mm,
+            s.vehicle_clearance_mm, s.footpath_width_mm, s.type_of_stone,
+            s.arch_brick_d_mm, s.arch_brick_b_mm,
+            s.abutment_brick_d_mm, s.abutment_brick_b_mm,
+            s.get_bed_joint_thickness_display() if s.bed_joint_thickness else "",
+            s.get_arch_barrel_joints_display() if s.arch_barrel_joints else "",
+            s.get_mortar_strength_display() if s.mortar_strength else "",
+            s.get_mortar_barrel_display() if s.mortar_barrel else "",
+            s.arch_barrel_cracking,
+            s.defect_location, s.defect_direction, s.defect_thickness,
+            s.recommended_action,
+            s.side, s.condition,
+            s.offset_from_edge_mm, s.distance_along_edge_mm,
+            s.notes,
+            s.chainage_m, s.distance_from_alignment_m,
             s.latitude, s.longitude, s.easting, s.northing,
-            s.gps_accuracy_m, photo_names, s.notes,
+            s.gps_accuracy_m, photo_names,
             s.captured_by.username if s.captured_by else "",
             s.captured_at.strftime("%Y-%m-%d %H:%M:%S")
         ])

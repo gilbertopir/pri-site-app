@@ -701,9 +701,23 @@
                 const resized = await resizeFiles(photoInput.files, 3);
                 resized.forEach(f => formData.append('photos', f));
             }
-            const response = await fetch(window.location.href, { method: 'POST', body: formData });
-            if (response.redirected) { window.location.href = response.url; }
-            else if (response.ok)    { window.location.reload(); }
+
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                redirect: 'follow'
+            });
+
+            if (response.ok) {
+                // Always reload — whether it was a redirect or a re-render
+                window.location.reload();
+            } else {
+                const text = await response.text();
+                console.error('Server error:', response.status, text.substring(0, 500));
+                showStatus('danger', `Error ${response.status} — please try again or check connection.`);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-building me-2"></i>Save Structure';
+            }
         } catch (err) {
             showStatus('danger', 'Upload error: ' + err.message);
             btn.disabled = false;
