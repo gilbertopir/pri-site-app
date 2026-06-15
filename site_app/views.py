@@ -1096,7 +1096,6 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
 @login_required
 def export_excel_only(request, alignment_id):
     from io import BytesIO
-    import zipfile
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment as XLAlign
     from pathlib import Path
@@ -1105,8 +1104,6 @@ def export_excel_only(request, alignment_id):
     features  = FeatureCapture.objects.filter(alignment=alignment)
     pp_list   = PassingPlace.objects.filter(alignment=alignment)
     stem      = alignment.dxf_file.replace(".dxf", "")
-    datestamp = datetime.now().strftime("%Y%m%d")
-    folder    = f"{stem}_export_{datestamp}"
 
     # -----------------------------
     # Build Excel
@@ -1150,7 +1147,7 @@ def export_excel_only(request, alignment_id):
 
     ws2 = wb.create_sheet("Passing Places")
     pp_headers = [
-        "ID", "PP ID", "Side", "Status",
+        "ID", "Entry Method", "PP ID", "Side", "Status",
         "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
         "Mid Easting", "Mid Northing",
         "Width (m)", "Length (m)",
@@ -1165,7 +1162,7 @@ def export_excel_only(request, alignment_id):
     for pp in pp_list:
         photo_names = ", ".join([Path(pp_photo.photo.name).name for pp_photo in pp.photos.all()])
         ws2.append([
-            pp.id, pp.pp_id, pp.side, pp.status,
+            pp.id, pp.entry_method, pp.pp_id, pp.side, pp.status,
             pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
             pp.mid_easting, pp.mid_northing,
             pp.width_m, pp.length_m,
