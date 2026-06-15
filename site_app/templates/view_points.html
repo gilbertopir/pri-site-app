@@ -149,10 +149,19 @@
                         {% endif %}
                     </div>
                     <div class="small text-muted mt-1">
-                        Ch: <strong>{{ pp.mid_chainage_m }}m</strong> &nbsp;|&nbsp;
-                        W: <strong>{{ pp.width_m }}m</strong> &nbsp;|&nbsp;
-                        L: <strong>{{ pp.length_m }}m</strong>
+                        Ch: <strong>{{ pp.mid_chainage_m }}m</strong>
+                        {% if pp.total_length_m %} &nbsp;|&nbsp; Total Length: <strong>{{ pp.total_length_m }}m</strong>{% endif %}
+                        {% if pp.width_vehicle_clearance_m %} &nbsp;|&nbsp; Width: <strong>{{ pp.width_vehicle_clearance_m }}m</strong>{% endif %}
                     </div>
+                    {% if pp.down_chainage_road_width_m or pp.down_chainage_taper_length_m or pp.usable_length_m or pp.up_chainage_road_width_m or pp.up_chainage_taper_length_m %}
+                    <div class="small text-muted">
+                        {% if pp.down_chainage_road_width_m %}Down Ch. Road Width: {{ pp.down_chainage_road_width_m }}m &nbsp;{% endif %}
+                        {% if pp.down_chainage_taper_length_m %}Down Ch. Taper: {{ pp.down_chainage_taper_length_m }}m &nbsp;{% endif %}
+                        {% if pp.usable_length_m %}Usable Length: {{ pp.usable_length_m }}m &nbsp;{% endif %}
+                        {% if pp.up_chainage_road_width_m %}Up Ch. Road Width: {{ pp.up_chainage_road_width_m }}m &nbsp;{% endif %}
+                        {% if pp.up_chainage_taper_length_m %}Up Ch. Taper: {{ pp.up_chainage_taper_length_m }}m{% endif %}
+                    </div>
+                    {% endif %}
                     <div class="small text-muted">
                         E: {{ pp.mid_easting }} &nbsp;|&nbsp; N: {{ pp.mid_northing }}
                     </div>
@@ -428,7 +437,8 @@
         }).bindPopup(m.label).addTo(map);
     });
 
-    // Delete confirmation
+    // CSRF token from Django template — more reliable on mobile than cookie
+    const CSRF_TOKEN = '{{ csrf_token }}';
     function confirmDelete(url) {
         document.getElementById('delete-confirm-btn').href = url;
         new bootstrap.Modal(document.getElementById('deleteModal')).show();
@@ -485,14 +495,22 @@
             const resized  = await resizeFiles(input.files, input.files.length);
             const formData = new FormData();
             resized.forEach(f => formData.append('photos', f));
-            formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+            formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
             const url = addPhotoType === 'feature'
                 ? '/api/add-feature-photos/' + addPhotoId + '/'
                 : addPhotoType === 'structure'
                 ? '/api/add-structure-photos/' + addPhotoId + '/'
                 : '/api/add-pp-photos/' + addPhotoId + '/';
             const response = await fetch(url, { method: 'POST', body: formData });
-            const data     = await response.json();
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                status.innerHTML = '<div class="alert alert-danger py-2 small">❌ Server error — please try again.</div>';
+                console.error('Server response:', text);
+                return;
+            }
             if (data.success) {
                 status.innerHTML = '<div class="alert alert-success py-2 small">uploaded ' + data.count + ' photo(s).</div>';
                 setTimeout(() => {

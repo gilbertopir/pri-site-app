@@ -31,6 +31,17 @@ def get_alignment_data(alignment):
     return load_alignment_from_dxf(alignment.dxf_file)
 
 
+def get_optional_float(post_data, field_name):
+    """Return float value from POST data, or None if blank/invalid."""
+    val = post_data.get(field_name, "").strip()
+    if val == "":
+        return None
+    try:
+        return float(val)
+    except ValueError:
+        return None
+
+
 # -----------------------------
 # Auth views
 # -----------------------------
@@ -221,8 +232,13 @@ def passing_places(request, alignment_id):
             mid_longitude  = projected["longitude"],
             mid_easting    = projected["easting"],
             mid_northing   = projected["northing"],
-            width_m        = float(request.POST.get("width_m", 0) or 0),
-            length_m       = float(request.POST.get("length_m", 0) or 0),
+            down_chainage_road_width_m   = get_optional_float(request.POST, "down_chainage_road_width_m"),
+            down_chainage_taper_length_m = get_optional_float(request.POST, "down_chainage_taper_length_m"),
+            usable_length_m              = get_optional_float(request.POST, "usable_length_m"),
+            width_vehicle_clearance_m    = get_optional_float(request.POST, "width_vehicle_clearance_m"),
+            total_length_m               = get_optional_float(request.POST, "total_length_m"),
+            up_chainage_road_width_m     = get_optional_float(request.POST, "up_chainage_road_width_m"),
+            up_chainage_taper_length_m   = get_optional_float(request.POST, "up_chainage_taper_length_m"),
             notes          = request.POST.get("notes", ""),
             gps_accuracy_m = float(request.POST.get("gps_accuracy", 0) or 0) if entry_method == "GPS" else None,
             entry_method   = entry_method,
@@ -714,8 +730,13 @@ def api_passing_place(request, alignment_id):
             mid_longitude  = projected["longitude"],
             mid_easting    = projected["easting"],
             mid_northing   = projected["northing"],
-            width_m        = float(body.get("width_m", 0)),
-            length_m       = float(body.get("length_m", 0)),
+            down_chainage_road_width_m   = body.get("down_chainage_road_width_m"),
+            down_chainage_taper_length_m = body.get("down_chainage_taper_length_m"),
+            usable_length_m              = body.get("usable_length_m"),
+            width_vehicle_clearance_m    = body.get("width_vehicle_clearance_m"),
+            total_length_m               = body.get("total_length_m"),
+            up_chainage_road_width_m     = body.get("up_chainage_road_width_m"),
+            up_chainage_taper_length_m   = body.get("up_chainage_taper_length_m"),
             notes          = body.get("notes", ""),
             gps_accuracy_m = float(body.get("gps_accuracy_m", 0) or 0),
             captured_by    = request.user,
@@ -897,7 +918,10 @@ def export_excel_only(request, alignment_id):
     pp_headers = [
         "ID", "Entry Method", "PP ID", "Side", "Status",
         "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
-        "Mid Easting", "Mid Northing", "Width (m)", "Length (m)",
+        "Mid Easting", "Mid Northing",
+        "Down Chainage Road Width (m)", "Down Chainage Taper Length (m)",
+        "Usable Length (m)", "Width (Vehicle Clearance) (m)", "Total Length (m)",
+        "Up Chainage Road Width (m)", "Up Chainage Taper Length (m)",
         "GPS Accuracy (m)", "Photo", "Notes", "Captured By", "Captured At"
     ]
     for col, header in enumerate(pp_headers, 1):
@@ -912,7 +936,9 @@ def export_excel_only(request, alignment_id):
             pp.id, pp.entry_method, pp.pp_id, pp.side, pp.status,
             pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
             pp.mid_easting, pp.mid_northing,
-            pp.width_m, pp.length_m,
+            pp.down_chainage_road_width_m, pp.down_chainage_taper_length_m,
+            pp.usable_length_m, pp.width_vehicle_clearance_m, pp.total_length_m,
+            pp.up_chainage_road_width_m, pp.up_chainage_taper_length_m,
             pp.gps_accuracy_m, photo_names, pp.notes,
             pp.captured_by.username if pp.captured_by else "",
             pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")
@@ -1133,8 +1159,13 @@ def edit_passing_place(request, pp_id):
     if request.method == "POST":
         pp.side     = request.POST.get("side", pp.side)
         pp.status   = request.POST.get("status", pp.status)
-        pp.width_m  = float(request.POST.get("width_m", 0) or 0)
-        pp.length_m = float(request.POST.get("length_m", 0) or 0)
+        pp.down_chainage_road_width_m   = get_optional_float(request.POST, "down_chainage_road_width_m")
+        pp.down_chainage_taper_length_m = get_optional_float(request.POST, "down_chainage_taper_length_m")
+        pp.usable_length_m              = get_optional_float(request.POST, "usable_length_m")
+        pp.width_vehicle_clearance_m    = get_optional_float(request.POST, "width_vehicle_clearance_m")
+        pp.total_length_m               = get_optional_float(request.POST, "total_length_m")
+        pp.up_chainage_road_width_m     = get_optional_float(request.POST, "up_chainage_road_width_m")
+        pp.up_chainage_taper_length_m   = get_optional_float(request.POST, "up_chainage_taper_length_m")
         pp.notes    = request.POST.get("notes", "")
         pp.save()
         messages.success(request, f"✅ {pp.pp_id} updated successfully.")
@@ -1218,7 +1249,9 @@ def export_passing_places_csv(request, alignment_id):
         "ID", "PP ID", "Side", "Status",
         "Mid Chainage (m)", "Mid Latitude", "Mid Longitude",
         "Mid Easting", "Mid Northing",
-        "Width (m)", "Length (m)",
+        "Down Chainage Road Width (m)", "Down Chainage Taper Length (m)",
+        "Usable Length (m)", "Width (Vehicle Clearance) (m)", "Total Length (m)",
+        "Up Chainage Road Width (m)", "Up Chainage Taper Length (m)",
         "GPS Accuracy (m)", "Notes", "Captured By", "Captured At"
     ])
     for pp in pp_list:
@@ -1226,7 +1259,9 @@ def export_passing_places_csv(request, alignment_id):
             pp.id, pp.pp_id, pp.side, pp.status,
             pp.mid_chainage_m, pp.mid_latitude, pp.mid_longitude,
             pp.mid_easting, pp.mid_northing,
-            pp.width_m, pp.length_m,
+            pp.down_chainage_road_width_m, pp.down_chainage_taper_length_m,
+            pp.usable_length_m, pp.width_vehicle_clearance_m, pp.total_length_m,
+            pp.up_chainage_road_width_m, pp.up_chainage_taper_length_m,
             pp.gps_accuracy_m,
             pp.notes, pp.captured_by.username if pp.captured_by else "",
             pp.captured_at.strftime("%Y-%m-%d %H:%M:%S")

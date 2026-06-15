@@ -102,7 +102,7 @@ class PassingPlacePhotoInline(admin.TabularInline):
 
 @admin.register(PassingPlace)
 class PassingPlaceAdmin(admin.ModelAdmin):
-    list_display    = ["pp_id", "alignment", "mid_chainage_m", "side", "status", "width_m", "length_m", "captured_by", "captured_at"]
+    list_display    = ["pp_id", "alignment", "mid_chainage_m", "side", "status", "total_length_m", "width_vehicle_clearance_m", "captured_by", "captured_at"]
     list_filter     = ["alignment", "side", "status"]
     readonly_fields = ["captured_at"]
     inlines         = [PassingPlacePhotoInline]
