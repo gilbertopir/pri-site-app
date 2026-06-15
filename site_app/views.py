@@ -1097,6 +1097,8 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
 def export_excel_only(request, alignment_id):
     from io import BytesIO
     import zipfile
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment as XLAlign
     from pathlib import Path
 
     alignment = get_object_or_404(Alignment, id=alignment_id)
