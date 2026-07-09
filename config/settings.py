@@ -11,7 +11,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # -----------------------------
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = ["*"]  # tighten this when deploying to VM
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="tgmanchester.digital,localhost,127.0.0.1").split(",")
+
+# -----------------------------
+# Security hardening
+# -----------------------------
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER       = True
+    SECURE_CONTENT_TYPE_NOSNIFF     = True
+    X_FRAME_OPTIONS                 = "DENY"
+    SESSION_COOKIE_SECURE           = True
+    CSRF_COOKIE_SECURE              = True
+    SECURE_HSTS_SECONDS             = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS  = True
+    SECURE_HSTS_PRELOAD             = True
+    # SECURE_SSL_REDIRECT handled by Cloudflare — leave off to avoid redirect loops
 
 # -----------------------------
 # Installed apps
@@ -71,7 +85,7 @@ TEMPLATES = [
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": BASE_DIR / "data" / "db.sqlite3",
     }
 }
 
@@ -115,7 +129,16 @@ DXF_DIR = BASE_DIR / "dxf_files"
 CSRF_TRUSTED_ORIGINS = [
     "https://tgmanchester.digital",
     "https://*.tgmanchester.digital",
+    "http://localhost:8505",
+    "http://127.0.0.1:8505",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
+
+# Add any extra origin from .env e.g. EXTRA_CSRF_ORIGIN=http://192.168.1.50:8505
+extra_origin = config("EXTRA_CSRF_ORIGIN", default="")
+if extra_origin:
+    CSRF_TRUSTED_ORIGINS.append(extra_origin)
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 LOGIN_URL = "/login/"
