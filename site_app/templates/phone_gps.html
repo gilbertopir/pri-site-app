@@ -209,8 +209,9 @@
     const DISTANCE_WARNING_M = 50;
 
     const map = L.map('map').setView([alignmentLine[0][0], alignmentLine[0][1]], 15);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom',
+        maxZoom: 17
     }).addTo(map);
     L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
 

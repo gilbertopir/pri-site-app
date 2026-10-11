@@ -117,6 +117,11 @@
                        id="side-RHS" value="RHS">
                 <label class="form-check-label" for="side-RHS">RHS — Right Hand Side</label>
             </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-BOTH" value="BOTH">
+                <label class="form-check-label" for="side-BOTH">Both Sides</label>
+            </div>
         </div>
     </div>
 
@@ -303,8 +308,9 @@
 
         if (!map) {
             map = L.map('map').setView(projLatLon, 17);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom',
+                maxZoom: 17
             }).addTo(map);
             L.polyline(alignmentLine, {color: '#0d6efd', weight: 5, opacity: 0.8}).addTo(map);
         }

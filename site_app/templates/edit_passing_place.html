@@ -44,7 +44,7 @@
     <!-- Side -->
     <div class="mb-3">
         <label class="form-label fw-semibold">Side of Road</label>
-        <div class="d-flex gap-3">
+        <div class="d-flex gap-3 flex-wrap">
             <div class="form-check">
                 <input class="form-check-input" type="radio" name="side"
                        id="side-LHS" value="LHS"
@@ -56,6 +56,12 @@
                        id="side-RHS" value="RHS"
                        {% if pp.side == 'RHS' %}checked{% endif %}>
                 <label class="form-check-label" for="side-RHS">RHS — Right Hand Side</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="side"
+                       id="side-BOTH" value="BOTH"
+                       {% if pp.side == 'BOTH' %}checked{% endif %}>
+                <label class="form-check-label" for="side-BOTH">Both Sides</label>
             </div>
         </div>
     </div>
@@ -122,18 +128,23 @@
         <textarea name="notes" class="form-control" rows="4">{{ pp.notes }}</textarea>
     </div>
 
-    <!-- Photos (read only — add via View) -->
+    <!-- Photos -->
     {% if pp.photos.all %}
     <div class="mb-3">
         <label class="form-label fw-semibold">Photos</label>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap" id="photo-list">
             {% for pp_photo in pp.photos.all %}
-            <img src="{{ pp_photo.photo.url }}" alt="Photo"
-                 class="img-fluid rounded" style="max-height:100px;max-width:100px;object-fit:cover;">
+            <div class="position-relative" id="photo-wrap-{{ pp_photo.id }}">
+                <img src="{{ pp_photo.photo.url }}" alt="Photo"
+                     class="img-fluid rounded" style="max-height:100px;max-width:100px;object-fit:cover;">
+                <button type="button"
+                        class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 lh-1"
+                        style="width:22px;height:22px;font-size:0.75rem;border-radius:50%;"
+                        onclick="deletePhoto({{ pp_photo.id }}, '{% url 'delete_pp_photo' pp_photo.id %}')">
+                    &times;
+                </button>
+            </div>
             {% endfor %}
-        </div>
-        <div class="small text-muted mt-1">
-            To add or remove photos use the View tab.
         </div>
     </div>
     {% endif %}
@@ -154,4 +165,26 @@
 
 </form>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function deletePhoto(photoId, url) {
+        if (!confirm('Delete this photo? This cannot be undone.')) return;
+        fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const wrap = document.getElementById('photo-wrap-' + photoId);
+                if (wrap) wrap.remove();
+            } else {
+                alert('Failed to delete photo.');
+            }
+        })
+        .catch(() => alert('Error deleting photo.'));
+    }
+</script>
 {% endblock %}

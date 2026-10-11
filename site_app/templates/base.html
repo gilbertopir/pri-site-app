@@ -171,10 +171,7 @@
            class="{% block nav_pp %}{% endblock %}">
             <i class="bi bi-arrow-left-right"></i>Passing
         </a>
-        <a href="{% url 'structures' alignment.id %}"
-           class="{% block nav_structures %}{% endblock %}">
-            <i class="bi bi-building"></i>Structures
-        </a>
+        {# Structures tab hidden — handled by standalone structures app #}
         <a href="{% url 'view_points' alignment.id %}"
            class="{% block nav_view %}{% endblock %}">
             <i class="bi bi-table"></i>View

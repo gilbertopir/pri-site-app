@@ -777,6 +777,30 @@ def api_add_pp_photos(request, pp_id):
         pp_photo = PassingPlacePhoto.objects.create(passing_place=pp, photo=photo)
         saved.append(pp_photo.photo.url)
     return JsonResponse({"success": True, "urls": saved, "count": len(saved)})
+
+
+# -----------------------------
+# AJAX — delete a single feature photo
+# -----------------------------
+@login_required
+@require_POST
+def delete_feature_photo(request, photo_id):
+    photo = get_object_or_404(FeaturePhoto, id=photo_id)
+    photo.delete()  # model's delete() removes file from disk too
+    return JsonResponse({"success": True})
+
+
+# -----------------------------
+# AJAX — delete a single passing place photo
+# -----------------------------
+@login_required
+@require_POST
+def delete_pp_photo(request, photo_id):
+    photo = get_object_or_404(PassingPlacePhoto, id=photo_id)
+    photo.delete()
+    return JsonResponse({"success": True})
+
+
 @login_required
 def admin_export(request):
     if not request.user.is_staff:

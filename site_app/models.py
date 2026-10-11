@@ -75,7 +75,7 @@ class FeatureCapture(models.Model):
         ("Drainage ditches",          "Drainage ditches"),
         ("Edge break-up",             "Edge break-up"),
         ("Embankments",               "Embankments"),
-        ("Existing walls",            "Existing walls"),
+        ("Walls",                     "Walls"),
         ("Fencing",                   "Fencing"),
         ("Gates",                     "Gates"),
         ("Gullies",                   "Gullies"),
@@ -139,8 +139,9 @@ class FeatureCapture(models.Model):
 # -----------------------------
 class PassingPlace(models.Model):
     SIDE_CHOICES = [
-        ("LHS", "Left Hand Side"),
-        ("RHS", "Right Hand Side"),
+        ("LHS",  "Left Hand Side"),
+        ("RHS",  "Right Hand Side"),
+        ("BOTH", "Both Sides"),
     ]
     STATUS_CHOICES = [
         ("Existing", "Existing"),

@@ -113,18 +113,23 @@
         <textarea name="notes" class="form-control" rows="4">{{ feature.notes }}</textarea>
     </div>
 
-    <!-- Photos (read only — add via View) -->
+    <!-- Photos -->
     {% if feature.photos.all %}
     <div class="mb-3">
         <label class="form-label fw-semibold">Photos</label>
-        <div class="d-flex gap-2 flex-wrap">
+        <div class="d-flex gap-2 flex-wrap" id="photo-list">
             {% for fp in feature.photos.all %}
-            <img src="{{ fp.photo.url }}" alt="Photo"
-                 class="img-fluid rounded" style="max-height:100px;max-width:100px;object-fit:cover;">
+            <div class="position-relative" id="photo-wrap-{{ fp.id }}">
+                <img src="{{ fp.photo.url }}" alt="Photo"
+                     class="img-fluid rounded" style="max-height:100px;max-width:100px;object-fit:cover;">
+                <button type="button"
+                        class="btn btn-danger btn-sm position-absolute top-0 end-0 p-0 lh-1"
+                        style="width:22px;height:22px;font-size:0.75rem;border-radius:50%;"
+                        onclick="deletePhoto('feature', {{ fp.id }}, '{% url 'delete_feature_photo' fp.id %}')">
+                    &times;
+                </button>
+            </div>
             {% endfor %}
-        </div>
-        <div class="small text-muted mt-1">
-            To add or remove photos use the View tab.
         </div>
     </div>
     {% endif %}
@@ -158,5 +163,23 @@
         }
     }
     document.getElementById('feature-type').addEventListener('change', toggleCustomType);
+
+    function deletePhoto(type, photoId, url) {
+        if (!confirm('Delete this photo? This cannot be undone.')) return;
+        fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const wrap = document.getElementById('photo-wrap-' + photoId);
+                if (wrap) wrap.remove();
+            } else {
+                alert('Failed to delete photo.');
+            }
+        })
+        .catch(() => alert('Error deleting photo.'));
+    }
 </script>
 {% endblock %}
