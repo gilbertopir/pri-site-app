@@ -1,6 +1,5 @@
 import json
 import csv
-import zipfile
 from datetime import datetime
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -473,6 +472,29 @@ def api_add_structure_photos(request, structure_id):
 # -----------------------------
 # View points
 # -----------------------------
+    alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
+    data      = get_alignment_data(alignment)
+    if data is None:
+        messages.error(request, f"Could not load DXF file: {alignment.dxf_file}")
+        return redirect("dashboard")
+
+    gps_line       = get_alignment_gps_line(data["points"])
+    features       = FeatureCapture.objects.filter(alignment=alignment)
+    pp_list        = PassingPlace.objects.filter(alignment=alignment)
+    structure_list = Structure.objects.filter(alignment=alignment)
+
+    return render(request, "view_points.html", {
+        "alignment":      alignment,
+        "gps_line":       json.dumps(gps_line),
+        "features":       features,
+        "pp_list":        pp_list,
+        "structure_list": structure_list,
+    })
+
+
+# -----------------------------
+# View points
+# -----------------------------
 @login_required
 def view_points(request, alignment_id):
     alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
@@ -623,8 +645,6 @@ def api_nearest_features(request, alignment_id):
         "pp_before":       pp_dict(pp_before, chainage),
         "pp_ahead":        pp_dict(pp_ahead,  chainage),
     })
-
-
 @login_required
 def api_chainage_to_gps(request, alignment_id):
     alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
@@ -781,9 +801,6 @@ def delete_pp_photo(request, photo_id):
     return JsonResponse({"success": True})
 
 
-# -----------------------------
-# Admin export page
-# -----------------------------
 @login_required
 def admin_export(request):
     if not request.user.is_staff:
@@ -871,9 +888,6 @@ def admin_export(request):
     return render(request, "admin_export.html", {"alignment_data": alignment_data})
 
 
-# -----------------------------
-# Export Excel
-# -----------------------------
 @login_required
 def export_excel_only(request, alignment_id):
     if not request.user.is_staff:
@@ -1046,63 +1060,40 @@ def export_excel_only(request, alignment_id):
 
 
 # -----------------------------
-# Streaming zip helper — photo exports
+# Streaming zip helpers (used by export_photos_volume)
 # -----------------------------
 class _ZipBuffer:
-    """Minimal writable buffer for streaming zip generation.
-
-    ZipFile.writestr() computes CRC and size upfront so no backward
-    seek is needed for individual entries. We capture each write and
-    drain it after every file so the browser receives data immediately
-    rather than waiting for the whole archive to assemble.
-    """
+    """Write-only buffer for zipfile. No seek() on purpose: without it zipfile
+    switches to streaming mode and writes sizes/CRC after each file."""
     def __init__(self):
         self._chunks = []
         self._pos = 0
-
     def write(self, data):
         chunk = bytes(data)
         self._chunks.append(chunk)
         self._pos += len(chunk)
         return len(chunk)
-
     def tell(self):
         return self._pos
-
-    def seek(self, pos, whence=0):
-        # ZipFile only seeks during __init__ (BadZipFile probe) — safe to no-op.
-        return self._pos
-
     def drain(self):
         data = b''.join(self._chunks)
         self._chunks = []
         return data
+    def flush(self):
+        pass  # zipfile calls this on close
 
 
-def _stream_zip(photo_files, type_label):
-    """Generator that yields zip bytes one photo at a time.
-
-    Uses ZIP_STORED (no compression) — photos are already JPEG-compressed
-    so deflate gains nothing and only wastes CPU on the Pi.
-    """
+def _stream_zip(selected, type_label):
+    """Yield the zip one photo at a time instead of building it all in memory."""
+    import zipfile
     buf = _ZipBuffer()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as zf:
-        for photo_path, photo_name in photo_files:
-            with open(str(photo_path), 'rb') as f:
-                data = f.read()
-            zf.writestr(f"photos/{type_label}/{photo_name}", data)
-            chunk = buf.drain()
-            if chunk:
-                yield chunk
-    # Central directory is written on __exit__ — flush it.
-    chunk = buf.drain()
-    if chunk:
-        yield chunk
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
+        for photo_path, photo_name in selected:
+            zf.write(photo_path, f"photos/{type_label}/{photo_name}")
+            yield buf.drain()
+    yield buf.drain()  # central directory, written when the zip closes
 
 
-# -----------------------------
-# Export photo volumes (streamed)
-# -----------------------------
 @login_required
 def export_photos_volume(request, alignment_id, photo_type, volume):
     if not request.user.is_staff:
@@ -1165,12 +1156,13 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
         messages.error(request, "Volume not found.")
         return redirect("admin_export")
 
-    selected   = volumes[vol_index]
-    type_label = (
-        "features"      if photo_type == "features"   else
-        "structures"    if photo_type == "structures" else
-        "passing_places"
-    )
+    selected = volumes[vol_index]
+    if photo_type == "features":
+        type_label = "features"
+    elif photo_type == "structures":
+        type_label = "structures"
+    else:
+        type_label = "passing_places"
     filename = f"{stem}_{type_label}_photos_vol{volume}_{datetime.now().strftime('%Y%m%d')}.zip"
 
     response = StreamingHttpResponse(
@@ -1178,9 +1170,9 @@ def export_photos_volume(request, alignment_id, photo_type, volume):
         content_type="application/zip",
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    # Prevent any proxy/gunicorn from buffering the whole archive before sending.
-    response["X-Accel-Buffering"] = "no"
     return response
+
+
 
 
 # -----------------------------
@@ -1226,7 +1218,7 @@ def edit_passing_place(request, pp_id):
         pp.usable_length_m              = get_optional_float(request.POST, "usable_length_m")
         pp.width_vehicle_clearance_m    = get_optional_float(request.POST, "width_vehicle_clearance_m")
         pp.total_length_m               = get_optional_float(request.POST, "total_length_m")
-        pp.up_chainage_road_width_m   = get_optional_float(request.POST, "up_chainage_road_width_m")
+        pp.up_chainage_road_width_m     = get_optional_float(request.POST, "up_chainage_road_width_m")
         pp.up_chainage_taper_length_m   = get_optional_float(request.POST, "up_chainage_taper_length_m")
         pp.notes    = request.POST.get("notes", "")
         pp.save()
@@ -1261,11 +1253,6 @@ def delete_feature(request, feature_id):
     feature.delete()
     messages.success(request, "Feature deleted.")
     return redirect("view_points", alignment_id=alignment_id)
-
-
-# -----------------------------
-# Export features CSV
-# -----------------------------
 @login_required
 def export_features_csv(request, alignment_id):
     alignment = get_object_or_404(Alignment, id=alignment_id, active=True)
